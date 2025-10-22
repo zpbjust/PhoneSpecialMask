@@ -61,11 +61,14 @@ struct MaskImageView: View {
     }
     
     var body: some View {
-        if let uiImage = loadImage() {
-            Image(uiImage: uiImage)
-                .resizable()
-                .aspectRatio(contentMode: contentMode)
-        } else {
+        GeometryReader { geometry in
+            if let uiImage = loadImage() {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .aspectRatio(contentMode: contentMode)
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+                    .clipped()
+            } else {
             // Placeholder
             ZStack {
                 Rectangle()
@@ -75,14 +78,15 @@ struct MaskImageView: View {
                         endPoint: .bottomTrailing
                     ))
                 
-                VStack(spacing: 8) {
-                    Image(systemName: "photo")
-                        .font(.system(size: 40))
-                        .foregroundColor(.white.opacity(0.5))
-                    
-                    Text(imageName)
-                        .font(.system(size: 12))
-                        .foregroundColor(.white.opacity(0.5))
+                    VStack(spacing: 8) {
+                        Image(systemName: "photo")
+                            .font(.system(size: 40))
+                            .foregroundColor(.white.opacity(0.5))
+                        
+                        Text(imageName)
+                            .font(.system(size: 12))
+                            .foregroundColor(.white.opacity(0.5))
+                    }
                 }
             }
         }

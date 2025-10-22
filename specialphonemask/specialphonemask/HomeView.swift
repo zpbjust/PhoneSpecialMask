@@ -15,9 +15,6 @@ struct HomeView: View {
     
     var body: some View {
         ZStack {
-            // Background
-            Color.black.ignoresSafeArea()
-            
             // Main Content
             TabView(selection: $selectedTab) {
                 // Wallpapers Tab
@@ -40,17 +37,32 @@ struct HomeView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             
-            // Minimalist Navigation
+            // Floating Navigation
             VStack {
                 MinimalistNavigationBar(
                     selectedTab: $selectedTab,
                     showGridView: $showGridView
                 )
-                .padding(.top, 60)
+                .padding(.top, 50)  // Increased padding for safe area
                 
                 Spacer()
             }
+            .background(
+                // Gradient fade from top
+                VStack {
+                    LinearGradient(
+                        colors: [.black.opacity(0.5), .clear],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: 150)
+                    
+                    Spacer()
+                }
+                .ignoresSafeArea()
+            )
         }
+        .ignoresSafeArea()
         .preferredColorScheme(.dark)
     }
 }
@@ -158,18 +170,38 @@ struct WallpaperGalleryView: View {
     @Binding var currentIndex: Int
     @Binding var showGridView: Bool
     @State private var wallpapers = Wallpaper.sampleWallpapers
+    @State private var dragOffset: CGFloat = 0
     
     var body: some View {
         ZStack {
             // Full Screen View
             if !showGridView {
-                TabView(selection: $currentIndex) {
+                ZStack {
                     ForEach(Array(wallpapers.enumerated()), id: \.element.id) { index, wallpaper in
                         WallpaperPageView(wallpaper: wallpaper, currentIndex: index + 1, total: wallpapers.count)
-                            .tag(index)
+                            .opacity(currentIndex == index ? 1 : 0)
+                            .scaleEffect(currentIndex == index ? 1.0 : 0.85)
+                            .rotation3DEffect(
+                                .degrees(Double(currentIndex - index) * 60),
+                                axis: (x: 0, y: 1, z: 0),
+                                anchor: .center,
+                                perspective: 0.5
+                            )
+                            .zIndex(currentIndex == index ? 1 : 0)
+                            .animation(.spring(response: 0.5, dampingFraction: 0.8), value: currentIndex)
                     }
                 }
-                .tabViewStyle(.page(indexDisplayMode: .never))
+                .gesture(
+                    DragGesture()
+                        .onEnded { value in
+                            let threshold: CGFloat = 50
+                            if value.translation.width > threshold && currentIndex > 0 {
+                                currentIndex -= 1
+                            } else if value.translation.width < -threshold && currentIndex < wallpapers.count - 1 {
+                                currentIndex += 1
+                            }
+                        }
+                )
                 .transition(.opacity)
             } else {
                 // Grid View
@@ -194,44 +226,45 @@ struct WallpaperPageView: View {
     @State private var isSaved = false
     
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // Wallpaper Image
-                MaskImageView(wallpaper.imageName, contentMode: .fill)
-                    .frame(width: geometry.size.width, height: geometry.size.height)
-                    .clipped()
-                
-                // Gradient Overlay
+        ZStack {
+            // Wallpaper Image (absolute full screen)
+            MaskImageView(wallpaper.imageName, contentMode: .fill)
+                .edgesIgnoringSafeArea(.all)
+            
+            // Gradient Overlay (bottom)
+            VStack {
+                Spacer()
                 LinearGradient(
                     colors: [.clear, .black.opacity(0.3), .black.opacity(0.7)],
-                    startPoint: .center,
+                    startPoint: .top,
                     endPoint: .bottom
                 )
-                .ignoresSafeArea()
+                .frame(height: 300)
+            }
+            .ignoresSafeArea()
+            
+            // Bottom Info Bar
+            VStack {
+                Spacer()
                 
-                // Bottom Info Bar
-                VStack {
-                    Spacer()
-                    
-                    BottomInfoBar(
-                        title: wallpaper.title,
-                        description: wallpaper.description,
-                        currentIndex: currentIndex,
-                        total: total,
-                        showDetails: $showDetails,
-                        isSaved: $isSaved,
-                        onSave: {
-                            saveWallpaper()
-                        },
-                        onEdit: {
-                            // TODO: Navigate to edit
-                        }
-                    )
-                    .padding(.bottom, 40)
-                }
+                BottomInfoBar(
+                    title: wallpaper.title,
+                    description: wallpaper.description,
+                    currentIndex: currentIndex,
+                    total: total,
+                    showDetails: $showDetails,
+                    isSaved: $isSaved,
+                    onSave: {
+                        saveWallpaper()
+                    },
+                    onEdit: {
+                        // TODO: Navigate to edit
+                    }
+                )
+                .padding(.bottom, 40)
             }
         }
-        .ignoresSafeArea()
+        .edgesIgnoringSafeArea(.all)
     }
     
     private func saveWallpaper() {
@@ -266,34 +299,25 @@ struct BottomInfoBar: View {
     
     var body: some View {
         VStack(spacing: 16) {
-            // Page Indicator
-            HStack(spacing: 12) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.6))
-                
-                Text("\(currentIndex)/\(total)")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white)
-                
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.6))
-            }
-            
-            // Title
-            Text(title)
-                .font(.system(size: 24, weight: .bold))
-                .foregroundColor(.white)
+            // Simple Page Indicator (no arrows)
+            Text("\(currentIndex)/\(total)")
+                .font(.system(size: 14, weight: .medium))
+                .foregroundColor(.white.opacity(0.7))
             
             // Description (expandable)
             if showDetails {
-                Text(description)
-                    .font(.system(size: 14))
-                    .foregroundColor(.white.opacity(0.8))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 40)
-                    .transition(.opacity.combined(with: .move(edge: .bottom)))
+                VStack(spacing: 8) {
+                    Text(title)
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.white)
+                    
+                    Text(description)
+                        .font(.system(size: 14))
+                        .foregroundColor(.white.opacity(0.8))
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.horizontal, 40)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
             }
             
             // Action Buttons
@@ -420,13 +444,32 @@ struct StickerGalleryView: View {
         ZStack {
             // Full Screen View
             if !showGridView {
-                TabView(selection: $currentIndex) {
+                ZStack {
                     ForEach(Array(themes.enumerated()), id: \.element.id) { index, theme in
                         StickerPageView(theme: theme, currentIndex: index + 1, total: themes.count)
-                            .tag(index)
+                            .opacity(currentIndex == index ? 1 : 0)
+                            .scaleEffect(currentIndex == index ? 1.0 : 0.85)
+                            .rotation3DEffect(
+                                .degrees(Double(currentIndex - index) * 60),
+                                axis: (x: 0, y: 1, z: 0),
+                                anchor: .center,
+                                perspective: 0.5
+                            )
+                            .zIndex(currentIndex == index ? 1 : 0)
+                            .animation(.spring(response: 0.5, dampingFraction: 0.8), value: currentIndex)
                     }
                 }
-                .tabViewStyle(.page(indexDisplayMode: .never))
+                .gesture(
+                    DragGesture()
+                        .onEnded { value in
+                            let threshold: CGFloat = 50
+                            if value.translation.width > threshold && currentIndex > 0 {
+                                currentIndex -= 1
+                            } else if value.translation.width < -threshold && currentIndex < themes.count - 1 {
+                                currentIndex += 1
+                            }
+                        }
+                )
                 .transition(.opacity)
             } else {
                 // Grid View
@@ -465,35 +508,30 @@ struct StickerGridView: View {
                         let generator = UIImpactFeedbackGenerator(style: .medium)
                         generator.impactOccurred()
                     }) {
-                        ZStack(alignment: .bottom) {
-                            // Background with theme color
+                        ZStack(alignment: .bottomLeading) {
+                            // Theme Main Image
+                            MaskImageView(theme.mainImage, contentMode: .fill)
+                                .frame(height: 240)
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                            
+                            // Gradient Overlay
                             LinearGradient(
-                                colors: [theme.color.opacity(0.4), theme.color.opacity(0.1)],
-                                startPoint: .top,
+                                colors: [.clear, .black.opacity(0.6)],
+                                startPoint: .center,
                                 endPoint: .bottom
                             )
                             .frame(height: 240)
                             .clipShape(RoundedRectangle(cornerRadius: 16))
                             
-                            // Theme Content
-                            VStack(spacing: 12) {
-                                Spacer()
-                                
-                                // Emoji
-                                Text(theme.emoji)
-                                    .font(.system(size: 60))
-                                
-                                // Theme Name
+                            // Theme Info
+                            VStack(alignment: .leading, spacing: 4) {
                                 Text(theme.name)
-                                    .font(.system(size: 18, weight: .bold))
+                                    .font(.system(size: 16, weight: .bold))
                                     .foregroundColor(.white)
                                 
-                                // Sticker Count
                                 Text("\(theme.stickerCount) 个贴纸")
                                     .font(.system(size: 12))
-                                    .foregroundColor(.white.opacity(0.7))
-                                
-                                Spacer()
+                                    .foregroundColor(.white.opacity(0.8))
                             }
                             .padding(12)
                         }
@@ -518,78 +556,64 @@ struct StickerPageView: View {
     let total: Int
     
     @State private var showDetails = false
+    @State private var showEditor = false
     
     var body: some View {
-        GeometryReader { geometry in
-            ZStack {
-                // Background with theme color
+        ZStack {
+            // Theme Main Image (full screen)
+            MaskImageView(theme.mainImage, contentMode: .fill)
+                .edgesIgnoringSafeArea(.all)
+            
+            // Gradient Overlay (bottom)
+            VStack {
+                Spacer()
                 LinearGradient(
-                    colors: [theme.color.opacity(0.3), .black],
+                    colors: [.clear, .black.opacity(0.3), .black.opacity(0.7)],
                     startPoint: .top,
                     endPoint: .bottom
                 )
-                .ignoresSafeArea()
+                .frame(height: 350)
+            }
+            .ignoresSafeArea()
+            
+            // Sticker Preview Overlay (middle)
+            VStack {
+                Spacer()
                 
-                VStack(spacing: 30) {
-                    Spacer()
-                    
-                    // Emoji Icon
-                    Text(theme.emoji)
-                        .font(.system(size: 80))
-                    
-                    // Theme Name
-                    Text(theme.name)
-                        .font(.system(size: 36, weight: .bold))
-                        .foregroundColor(.white)
-                    
-                    // Description
-                    Text(theme.description)
-                        .font(.system(size: 18))
-                        .foregroundColor(.white.opacity(0.8))
-                    
-                    // Sticker Preview
-                    HStack(spacing: 20) {
-                        ForEach(theme.stickers, id: \.self) { sticker in
-                            MaskImageView(sticker, contentMode: .fit)
-                                .frame(width: 80, height: 80)
-                                .background(
-                                    Color.white.opacity(0.1),
-                                    in: RoundedRectangle(cornerRadius: 16)
-                                )
-                        }
+                HStack(spacing: 20) {
+                    ForEach(theme.stickers, id: \.self) { sticker in
+                        MaskImageView(sticker, contentMode: .fit)
+                            .frame(width: 100, height: 100)
+                            .background(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(Color.white.opacity(0.1))
+                                    .shadow(color: .black.opacity(0.3), radius: 10)
+                            )
                     }
-                    
-                    // Suitable Scene
-                    if showDetails {
-                        VStack(spacing: 8) {
-                            Text("适合场景")
-                                .font(.system(size: 14, weight: .semibold))
-                                .foregroundColor(.white.opacity(0.6))
-                            
-                            Text(theme.suitableScene)
-                                .font(.system(size: 16))
-                                .foregroundColor(.white.opacity(0.9))
-                        }
-                        .transition(.opacity.combined(with: .move(edge: .bottom)))
-                    }
-                    
-                    Spacer()
-                    
-                    // Bottom Bar
-                    StickerBottomBar(
-                        currentIndex: currentIndex,
-                        total: total,
-                        stickerCount: theme.stickerCount,
-                        showDetails: $showDetails,
-                        onStartCreate: {
-                            // TODO: Navigate to editor
-                        }
-                    )
-                    .padding(.bottom, 40)
                 }
+                .padding(.bottom, 150)
+            }
+            
+            // Bottom Bar
+            VStack {
+                Spacer()
+                
+                StickerBottomBar(
+                    currentIndex: currentIndex,
+                    total: total,
+                    stickerCount: theme.stickerCount,
+                    showDetails: $showDetails,
+                    onStartCreate: {
+                        showEditor = true
+                    }
+                )
+                .padding(.bottom, 40)
             }
         }
-        .ignoresSafeArea()
+        .edgesIgnoringSafeArea(.all)
+        .fullScreenCover(isPresented: $showEditor) {
+            StickerEditorView(theme: theme)
+        }
     }
 }
 
@@ -603,23 +627,9 @@ struct StickerBottomBar: View {
     
     var body: some View {
         VStack(spacing: 16) {
-            // Page Indicator
-            HStack(spacing: 12) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.6))
-                
-                Text("\(currentIndex)/\(total)")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white)
-                
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.6))
-            }
-            
-            Text("包含 \(stickerCount) 个贴纸")
-                .font(.system(size: 14))
+            // Simple Page Indicator
+            Text("\(currentIndex)/\(total)")
+                .font(.system(size: 14, weight: .medium))
                 .foregroundColor(.white.opacity(0.7))
             
             // Action Buttons
