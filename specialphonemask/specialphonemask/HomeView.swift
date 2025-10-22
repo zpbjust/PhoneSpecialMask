@@ -224,6 +224,8 @@ struct WallpaperPageView: View {
     
     @State private var showDetails = false
     @State private var isSaved = false
+    @State private var showGuide = false
+    @State private var showPermissionDenied = false
     
     var body: some View {
         ZStack {
@@ -263,26 +265,82 @@ struct WallpaperPageView: View {
                 )
                 .padding(.bottom, 40)
             }
+            
+            // Wallpaper Guide Overlay
+            if showGuide {
+                WallpaperGuideView(onDismiss: {
+                    showGuide = false
+                })
+            }
         }
         .edgesIgnoringSafeArea(.all)
+        .withPhotoLibraryPermission(
+            showDeniedGuide: $showPermissionDenied,
+            title: "需要相册权限",
+            message: "请允许访问相册，以便保存精美壁纸到您的设备"
+        )
     }
     
     private func saveWallpaper() {
-        // TODO: Implement save to photo library
-        withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
-            isSaved = true
+        // Load image
+        guard let image = loadWallpaperImage() else { return }
+        
+        // Request permission and save
+        PhotoLibraryPermissionManager.shared.saveImage(
+            image,
+            onSuccess: {
+                // Success - Update UI
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
+                    isSaved = true
+                }
+                
+                // Haptic feedback
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.success)
+                
+                // Show guide after 1 second
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
+                    withAnimation {
+                        showGuide = true
+                    }
+                }
+                
+                // Reset saved state after 3 seconds
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                    withAnimation {
+                        isSaved = false
+                    }
+                }
+            },
+            onFailure: { errorMessage in
+                // Permission denied - Show guide
+                withAnimation {
+                    showPermissionDenied = true
+                }
+            }
+        )
+    }
+    
+    private func loadWallpaperImage() -> UIImage? {
+        // Try to load from assets
+        if let image = UIImage(named: wallpaper.imageName) {
+            return image
         }
         
-        // Haptic feedback
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
+        // Try loading from bundle paths
+        let paths = [
+            "mask/wallpaper/\(wallpaper.imageName).png",
+            "mask/wallpaper/\(wallpaper.imageName).jpg"
+        ]
         
-        // Reset after 2 seconds
-        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-            withAnimation {
-                isSaved = false
+        for path in paths {
+            if let bundlePath = Bundle.main.path(forResource: path.replacingOccurrences(of: ".png", with: "").replacingOccurrences(of: ".jpg", with: ""), ofType: nil),
+               let image = UIImage(contentsOfFile: bundlePath) {
+                return image
             }
         }
+        
+        return nil
     }
 }
 
@@ -705,6 +763,159 @@ struct MyWorksView: View {
                 
                 Spacer()
             }
+        }
+    }
+}
+
+// MARK: - Wallpaper Guide View
+struct WallpaperGuideView: View {
+    let onDismiss: () -> Void
+    
+    var body: some View {
+        ZStack {
+            // Background Overlay
+            Color.black.opacity(0.9)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    onDismiss()
+                }
+            
+            VStack(spacing: 30) {
+                // Title
+                VStack(spacing: 12) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 60))
+                        .foregroundColor(.green)
+                    
+                    Text("已保存到相册")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundColor(.white)
+                }
+                .padding(.top, 40)
+                
+                // Guide Steps
+                VStack(alignment: .leading, spacing: 24) {
+                    Text("如何设置为壁纸？")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.white)
+                    
+                    GuideStepView(
+                        number: "1",
+                        icon: "gear",
+                        title: "打开\"设置\"",
+                        description: "在主屏幕找到设置应用"
+                    )
+                    
+                    GuideStepView(
+                        number: "2",
+                        icon: "photo",
+                        title: "选择\"壁纸\"",
+                        description: "进入壁纸设置页面"
+                    )
+                    
+                    GuideStepView(
+                        number: "3",
+                        icon: "plus.circle",
+                        title: "添加新壁纸",
+                        description: "从相册中选择刚保存的图片"
+                    )
+                    
+                    GuideStepView(
+                        number: "4",
+                        icon: "checkmark.circle",
+                        title: "设为锁屏或主屏",
+                        description: "选择锁定屏幕或主屏幕"
+                    )
+                }
+                .padding(.horizontal, 30)
+                .padding(.vertical, 24)
+                .background(
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(Color.white.opacity(0.1))
+                )
+                .padding(.horizontal, 20)
+                
+                Spacer()
+                
+                // Action Buttons
+                VStack(spacing: 12) {
+                    // Open Settings
+                    Button(action: {
+                        if let url = URL(string: UIApplication.openSettingsURLString) {
+                            UIApplication.shared.open(url)
+                        }
+                        onDismiss()
+                    }) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "gear")
+                                .font(.system(size: 18))
+                            Text("打开设置")
+                                .font(.system(size: 16, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color.blue)
+                        )
+                    }
+                    
+                    // Dismiss Button
+                    Button(action: onDismiss) {
+                        Text("我知道了")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.white.opacity(0.8))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 40)
+            }
+        }
+        .transition(.opacity.combined(with: .scale(scale: 0.9)))
+    }
+}
+
+// MARK: - Guide Step View
+struct GuideStepView: View {
+    let number: String
+    let icon: String
+    let title: String
+    let description: String
+    
+    var body: some View {
+        HStack(spacing: 16) {
+            // Step Number
+            ZStack {
+                Circle()
+                    .fill(Color.blue.opacity(0.2))
+                    .frame(width: 40, height: 40)
+                
+                Text(number)
+                    .font(.system(size: 16, weight: .bold))
+                    .foregroundColor(.blue)
+            }
+            
+            // Icon
+            Image(systemName: icon)
+                .font(.system(size: 20))
+                .foregroundColor(.blue)
+                .frame(width: 30)
+            
+            // Content
+            VStack(alignment: .leading, spacing: 4) {
+                Text(title)
+                    .font(.system(size: 15, weight: .semibold))
+                    .foregroundColor(.white)
+                
+                Text(description)
+                    .font(.system(size: 13))
+                    .foregroundColor(.white.opacity(0.7))
+            }
+            
+            Spacer()
         }
     }
 }

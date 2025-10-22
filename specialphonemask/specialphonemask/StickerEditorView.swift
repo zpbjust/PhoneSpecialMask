@@ -28,6 +28,8 @@ struct StickerEditorView: View {
     @State private var showImagePicker = false
     @State private var photoPickerItem: PhotosPickerItem?
     @State private var isStickerPanelExpanded = false
+    @State private var showPermissionDenied = false
+    @State private var showSaveSuccess = false
     
     var body: some View {
         ZStack {
@@ -96,7 +98,7 @@ struct StickerEditorView: View {
                         addSticker(stickerName)
                     },
                     onChangeBackground: {
-                        showImagePicker = true
+                        requestPhotoPickerPermission()
                     },
                     onDeleteSelected: {
                         if let selectedId = selectedStickerId {
@@ -105,6 +107,14 @@ struct StickerEditorView: View {
                         }
                     }
                 )
+            }
+            
+            // Save Success Overlay
+            if showSaveSuccess {
+                SaveSuccessOverlay(onDismiss: {
+                    showSaveSuccess = false
+                    dismiss()
+                })
             }
         }
         .photosPicker(isPresented: $showImagePicker, selection: $photoPickerItem, matching: .images)
@@ -116,7 +126,28 @@ struct StickerEditorView: View {
                 }
             }
         }
+        .withPhotoLibraryPermission(
+            showDeniedGuide: $showPermissionDenied,
+            title: "需要相册权限",
+            message: "请允许访问相册，以便保存您的创作作品"
+        )
         .ignoresSafeArea()
+    }
+    
+    // MARK: - Request Photo Picker Permission
+    private func requestPhotoPickerPermission() {
+        // Request read/write access for photo picker
+        PhotoLibraryPermissionManager.shared.requestPermissionAndExecute(
+            for: .readWrite,
+            onAuthorized: {
+                // Permission granted - Open picker
+                showImagePicker = true
+            },
+            onDenied: {
+                // Permission denied - Show guide
+                showPermissionDenied = true
+            }
+        )
     }
     
     // MARK: - Add Sticker
@@ -136,6 +167,7 @@ struct StickerEditorView: View {
     
     // MARK: - Save Composite Image
     private func saveCompositeImage() {
+        // Render composite image
         let renderer = UIGraphicsImageRenderer(size: UIScreen.main.bounds.size)
         
         let compositeImage = renderer.image { context in
@@ -171,15 +203,26 @@ struct StickerEditorView: View {
             }
         }
         
-        // Save to photo library
-        UIImageWriteToSavedPhotosAlbum(compositeImage, nil, nil, nil)
-        
-        // Haptic feedback
-        let generator = UINotificationFeedbackGenerator()
-        generator.notificationOccurred(.success)
-        
-        // Close editor
-        dismiss()
+        // Request permission and save
+        PhotoLibraryPermissionManager.shared.saveImage(
+            compositeImage,
+            onSuccess: {
+                // Haptic feedback
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.success)
+                
+                // Show success overlay
+                withAnimation {
+                    showSaveSuccess = true
+                }
+            },
+            onFailure: { errorMessage in
+                // Permission denied - Show guide
+                withAnimation {
+                    showPermissionDenied = true
+                }
+            }
+        )
     }
     
     // MARK: - Load Image Helper
@@ -478,6 +521,57 @@ struct EditorBottomToolbar: View {
             )
         }
         .ignoresSafeArea(edges: .bottom)
+    }
+}
+
+// MARK: - Save Success Overlay
+struct SaveSuccessOverlay: View {
+    let onDismiss: () -> Void
+    
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.85)
+                .ignoresSafeArea()
+            
+            VStack(spacing: 24) {
+                // Success Animation
+                ZStack {
+                    Circle()
+                        .fill(Color.green.opacity(0.2))
+                        .frame(width: 100, height: 100)
+                    
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 70))
+                        .foregroundColor(.green)
+                }
+                
+                // Message
+                VStack(spacing: 12) {
+                    Text("保存成功！")
+                        .font(.system(size: 28, weight: .bold))
+                        .foregroundColor(.white)
+                    
+                    Text("作品已保存到相册")
+                        .font(.system(size: 16))
+                        .foregroundColor(.white.opacity(0.8))
+                }
+                
+                // Done Button
+                Button(action: onDismiss) {
+                    Text("完成")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.white)
+                        .frame(width: 200)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16)
+                                .fill(Color.green)
+                        )
+                }
+                .padding(.top, 16)
+            }
+        }
+        .transition(.opacity.combined(with: .scale(scale: 0.8)))
     }
 }
 
