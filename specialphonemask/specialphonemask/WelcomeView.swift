@@ -95,7 +95,7 @@ struct WelcomeView: View {
                     
                     // App Name - 深色文字
                     VStack(spacing: 12) {
-                        Text("Special Phone Mask")
+                        Text("精美遮挡壁纸")
                             .font(.system(size: 32, weight: .bold, design: .rounded))
                             .foregroundColor(.primary)
                             .opacity(animateText ? 1.0 : 0.0)
@@ -112,8 +112,8 @@ struct WelcomeView: View {
                     
                     // Features
                     VStack(spacing: 20) {
-                        FeatureRow(icon: "photo.stack.fill", title: "16 张精选壁纸", description: "直接使用")
-                        FeatureRow(icon: "face.smiling.fill", title: "9 套创意贴纸", description: "自由搭配")
+                        FeatureRow(icon: "photo.stack.fill", title: "精选壁纸", description: "直接使用")
+                        FeatureRow(icon: "face.smiling.fill", title: "创意贴纸", description: "自由搭配")
                         FeatureRow(icon: "wand.and.stars", title: "轻松定制", description: "简单操作")
                     }
                     .opacity(animateText ? 1.0 : 0.0)
