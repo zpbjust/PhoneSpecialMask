@@ -943,20 +943,24 @@ struct WorkCard: View {
                         HStack {
                             Spacer()
                             
-                            // Delete Button - 阻止事件传播
+                            // Delete Button
                             Button(action: {
                                 showDeleteConfirmation = true
                             }) {
-                                ActionButton(
-                                    icon: "trash.fill",
-                                    color: .red,
-                                    action: { }
-                                )
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.red)
+                                        .frame(width: 36, height: 36)
+                                    
+                                    Image(systemName: "trash.fill")
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundColor(.white)
+                                }
                             }
                             .buttonStyle(PlainButtonStyle())
+                            .padding(.trailing, 12)
+                            .padding(.bottom, 12)
                         }
-                        .padding(.trailing, 12)
-                        .padding(.bottom, 12)
                     }
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                     .background(
@@ -970,6 +974,7 @@ struct WorkCard: View {
                             endPoint: .bottom
                         )
                     )
+                    .allowsHitTesting(true)  // 允许点击事件
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 16))
             }
@@ -1032,37 +1037,11 @@ struct ThumbnailImageView: View {
         let cardWidth = (UIScreen.main.bounds.width - 56) / 2
         let cardHeight: CGFloat = 240
         
-        return ZStack {
-            Color.gray.opacity(0.1)
-            
-            if let image = resizeImageToFill(image: thumbnail, targetSize: CGSize(width: cardWidth, height: cardHeight)) {
-                Image(uiImage: image)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: cardWidth, height: cardHeight)
-                    .clipped()
-            }
-        }
-        .frame(width: cardWidth, height: cardHeight)
-    }
-    
-    // Helper function to resize image without stretching
-    private func resizeImageToFill(image: UIImage, targetSize: CGSize) -> UIImage? {
-        let size = image.size
-        let widthRatio = targetSize.width / size.width
-        let heightRatio = targetSize.height / size.height
-        
-        // Use the larger ratio to ensure the image fills the target size
-        let ratio = max(widthRatio, heightRatio)
-        
-        let newSize = CGSize(width: size.width * ratio, height: size.height * ratio)
-        
-        let renderer = UIGraphicsImageRenderer(size: targetSize)
-        return renderer.image { _ in
-            let originX = (targetSize.width - newSize.width) / 2
-            let originY = (targetSize.height - newSize.height) / 2
-            image.draw(in: CGRect(x: originX, y: originY, width: newSize.width, height: newSize.height))
-        }
+        return Image(uiImage: thumbnail)
+            .resizable()
+            .scaledToFill()  // 等比例放大填满，保持比例
+            .frame(width: cardWidth, height: cardHeight)
+            .clipped()  // 裁剪超出部分
     }
 }
 

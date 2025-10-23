@@ -62,13 +62,11 @@ class MyWorksManager: ObservableObject {
                 }
                 try imageData.write(to: fileURL)
                 
-                // 生成缩略图 - 使用屏幕比例（竖屏手机比例）
+                // 生成缩略图 - 保持原图比例
                 let thumbnailFileName = "thumb_\(Int(timestamp)).jpg"
                 let thumbnailURL = self.worksDirectory.appendingPathComponent(thumbnailFileName)
-                // 使用手机屏幕比例生成缩略图
-                let screenAspect = UIScreen.main.bounds.width / UIScreen.main.bounds.height
-                let thumbnailSize = CGSize(width: 600, height: 600 / screenAspect)  // 保持屏幕比例
-                if let thumbnail = self.createThumbnail(from: image, size: thumbnailSize) {
+                // 使用较小尺寸，但保持原图比例
+                if let thumbnail = self.createThumbnail(from: image, maxSize: 800) {
                     if let thumbnailData = thumbnail.jpegData(compressionQuality: 0.8) {
                         try thumbnailData.write(to: thumbnailURL)
                     }
@@ -137,38 +135,32 @@ class MyWorksManager: ObservableObject {
         try? data.write(to: metadataFile)
     }
     
-    private func createThumbnail(from image: UIImage, size: CGSize) -> UIImage? {
-        // 计算 aspectFill 的绘制区域（保持比例，填满目标尺寸）
-        let imageAspect = image.size.width / image.size.height
-        let targetAspect = size.width / size.height
+    // 生成缩略图 - 保持原图比例
+    private func createThumbnail(from image: UIImage, maxSize: CGFloat) -> UIImage? {
+        let size = image.size
         
-        var drawRect: CGRect
-        if imageAspect > targetAspect {
-            // 图片更宽，按高度缩放
-            let scaledWidth = size.height * imageAspect
-            drawRect = CGRect(
-                x: (size.width - scaledWidth) / 2,
-                y: 0,
-                width: scaledWidth,
-                height: size.height
-            )
+        // 计算缩放比例（保持原始比例）
+        let scale: CGFloat
+        if size.width > size.height {
+            // 横图：按宽度缩放
+            scale = maxSize / size.width
         } else {
-            // 图片更高，按宽度缩放
-            let scaledHeight = size.width / imageAspect
-            drawRect = CGRect(
-                x: 0,
-                y: (size.height - scaledHeight) / 2,
-                width: size.width,
-                height: scaledHeight
-            )
+            // 竖图：按高度缩放
+            scale = maxSize / size.height
         }
         
-        let renderer = UIGraphicsImageRenderer(size: size)
-        return renderer.image { context in
-            // 裁剪到目标尺寸
-            UIRectClip(CGRect(origin: .zero, size: size))
-            // 绘制图片（保持比例）
-            image.draw(in: drawRect)
+        // 如果图片已经很小，不需要缩放
+        if scale >= 1.0 {
+            return image
+        }
+        
+        // 计算新尺寸（保持原始比例）
+        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
+        
+        // 生成缩略图
+        let renderer = UIGraphicsImageRenderer(size: newSize)
+        return renderer.image { _ in
+            image.draw(in: CGRect(origin: .zero, size: newSize))
         }
     }
 }
