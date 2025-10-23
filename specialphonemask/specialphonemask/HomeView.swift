@@ -176,32 +176,15 @@ struct WallpaperGalleryView: View {
         ZStack {
             // Full Screen View
             if !showGridView {
-                ZStack {
+                TabView(selection: $currentIndex) {
                     ForEach(Array(wallpapers.enumerated()), id: \.element.id) { index, wallpaper in
                         WallpaperPageView(wallpaper: wallpaper, currentIndex: index + 1, total: wallpapers.count)
-                            .opacity(currentIndex == index ? 1 : 0)
-                            .scaleEffect(currentIndex == index ? 1.0 : 0.85)
-                            .rotation3DEffect(
-                                .degrees(Double(currentIndex - index) * 60),
-                                axis: (x: 0, y: 1, z: 0),
-                                anchor: .center,
-                                perspective: 0.5
-                            )
-                            .zIndex(currentIndex == index ? 1 : 0)
-                            .animation(.spring(response: 0.5, dampingFraction: 0.8), value: currentIndex)
+                            .ignoresSafeArea()
+                            .tag(index)
                     }
                 }
-                .gesture(
-                    DragGesture()
-                        .onEnded { value in
-                            let threshold: CGFloat = 50
-                            if value.translation.width > threshold && currentIndex > 0 {
-                                currentIndex -= 1
-                            } else if value.translation.width < -threshold && currentIndex < wallpapers.count - 1 {
-                                currentIndex += 1
-                            }
-                        }
-                )
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .ignoresSafeArea()
                 .transition(.opacity)
             } else {
                 // Grid View
@@ -231,7 +214,7 @@ struct WallpaperPageView: View {
         ZStack {
             // Wallpaper Image (absolute full screen)
             MaskImageView(wallpaper.imageName, contentMode: .fill)
-                .edgesIgnoringSafeArea(.all)
+                .ignoresSafeArea()
             
             // Gradient Overlay (bottom)
             VStack {
@@ -502,32 +485,15 @@ struct StickerGalleryView: View {
         ZStack {
             // Full Screen View
             if !showGridView {
-                ZStack {
+                TabView(selection: $currentIndex) {
                     ForEach(Array(themes.enumerated()), id: \.element.id) { index, theme in
                         StickerPageView(theme: theme, currentIndex: index + 1, total: themes.count)
-                            .opacity(currentIndex == index ? 1 : 0)
-                            .scaleEffect(currentIndex == index ? 1.0 : 0.85)
-                            .rotation3DEffect(
-                                .degrees(Double(currentIndex - index) * 60),
-                                axis: (x: 0, y: 1, z: 0),
-                                anchor: .center,
-                                perspective: 0.5
-                            )
-                            .zIndex(currentIndex == index ? 1 : 0)
-                            .animation(.spring(response: 0.5, dampingFraction: 0.8), value: currentIndex)
+                            .ignoresSafeArea()
+                            .tag(index)
                     }
                 }
-                .gesture(
-                    DragGesture()
-                        .onEnded { value in
-                            let threshold: CGFloat = 50
-                            if value.translation.width > threshold && currentIndex > 0 {
-                                currentIndex -= 1
-                            } else if value.translation.width < -threshold && currentIndex < themes.count - 1 {
-                                currentIndex += 1
-                            }
-                        }
-                )
+                .tabViewStyle(.page(indexDisplayMode: .never))
+                .ignoresSafeArea()
                 .transition(.opacity)
             } else {
                 // Grid View
@@ -620,7 +586,7 @@ struct StickerPageView: View {
         ZStack {
             // Theme Main Image (full screen)
             MaskImageView(theme.mainImage, contentMode: .fill)
-                .edgesIgnoringSafeArea(.all)
+                .ignoresSafeArea()
             
             // Gradient Overlay (bottom)
             VStack {
