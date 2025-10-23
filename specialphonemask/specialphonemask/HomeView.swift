@@ -908,71 +908,72 @@ struct WorkCard: View {
     
     var body: some View {
         VStack(spacing: 0) {
-            // Work Thumbnail
-            ZStack {
-                if let thumbnail = worksManager.loadWorkImage(work, useThumbnail: true) {
-                    // 使用固定比例显示，不拉伸
-                    Image(uiImage: thumbnail)
-                        .resizable()
-                        .scaledToFill()
-                        .frame(width: (UIScreen.main.bounds.width - 56) / 2, height: 240)
-                        .clipped()
-                } else {
-                    // Placeholder
-                    Rectangle()
-                        .fill(
-                            LinearGradient(
-                                colors: [
-                                    Color.gray.opacity(0.1),
-                                    Color.gray.opacity(0.05)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
+            // Work Thumbnail - 点击整个卡片预览
+            Button(action: {
+                showFullImage = true
+            }) {
+                ZStack {
+                    if let thumbnail = worksManager.loadWorkImage(work, useThumbnail: true) {
+                        ThumbnailImageView(thumbnail: thumbnail)
+                    } else {
+                        // Placeholder
+                        Rectangle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [
+                                        Color.gray.opacity(0.1),
+                                        Color.gray.opacity(0.05)
+                                    ],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
                             )
-                        )
-                        .frame(height: 240)
-                        .overlay(
-                            Image(systemName: "photo")
-                                .font(.system(size: 40))
-                                .foregroundColor(.gray.opacity(0.3))
-                        )
-                }
-                
-                // Actions Overlay (渐变背景)
-                VStack {
-                    Spacer()
-                    
-                    HStack(spacing: 10) {
-                        // View Button
-                        ActionButton(
-                            icon: "eye.fill",
-                            color: .blue,
-                            action: { showFullImage = true }
-                        )
-                        
-                        // Delete Button
-                        ActionButton(
-                            icon: "trash.fill",
-                            color: .red,
-                            action: { showDeleteConfirmation = true }
-                        )
+                            .frame(height: 240)
+                            .overlay(
+                                Image(systemName: "photo")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(.gray.opacity(0.3))
+                            )
                     }
-                    .padding(.bottom, 12)
-                }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(
-                    LinearGradient(
-                        colors: [
-                            .clear,
-                            .black.opacity(0.2),
-                            .black.opacity(0.5)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
+                    
+                    // Actions Overlay (只保留删除按钮)
+                    VStack {
+                        Spacer()
+                        
+                        HStack {
+                            Spacer()
+                            
+                            // Delete Button - 阻止事件传播
+                            Button(action: {
+                                showDeleteConfirmation = true
+                            }) {
+                                ActionButton(
+                                    icon: "trash.fill",
+                                    color: .red,
+                                    action: { }
+                                )
+                            }
+                            .buttonStyle(PlainButtonStyle())
+                        }
+                        .padding(.trailing, 12)
+                        .padding(.bottom, 12)
+                    }
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .background(
+                        LinearGradient(
+                            colors: [
+                                .clear,
+                                .black.opacity(0.1),
+                                .black.opacity(0.3)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
                     )
-                )
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 16))
             }
-            .clipShape(RoundedRectangle(cornerRadius: 16))
+            .buttonStyle(PlainButtonStyle())
             
             // Date Info
             HStack {
@@ -1018,6 +1019,49 @@ struct WorkCard: View {
                     showFullImage = false
                 })
             }
+        }
+    }
+}
+
+// MARK: - Action Button
+// MARK: - Thumbnail Image View
+struct ThumbnailImageView: View {
+    let thumbnail: UIImage
+    
+    var body: some View {
+        let cardWidth = (UIScreen.main.bounds.width - 56) / 2
+        let cardHeight: CGFloat = 240
+        
+        return ZStack {
+            Color.gray.opacity(0.1)
+            
+            if let image = resizeImageToFill(image: thumbnail, targetSize: CGSize(width: cardWidth, height: cardHeight)) {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: cardWidth, height: cardHeight)
+                    .clipped()
+            }
+        }
+        .frame(width: cardWidth, height: cardHeight)
+    }
+    
+    // Helper function to resize image without stretching
+    private func resizeImageToFill(image: UIImage, targetSize: CGSize) -> UIImage? {
+        let size = image.size
+        let widthRatio = targetSize.width / size.width
+        let heightRatio = targetSize.height / size.height
+        
+        // Use the larger ratio to ensure the image fills the target size
+        let ratio = max(widthRatio, heightRatio)
+        
+        let newSize = CGSize(width: size.width * ratio, height: size.height * ratio)
+        
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        return renderer.image { _ in
+            let originX = (targetSize.width - newSize.width) / 2
+            let originY = (targetSize.height - newSize.height) / 2
+            image.draw(in: CGRect(x: originX, y: originY, width: newSize.width, height: newSize.height))
         }
     }
 }
@@ -1069,7 +1113,7 @@ struct FullImageView: View {
             }
             .ignoresSafeArea()
             
-            // Top Bar
+            // Top Bar - 提高位置
             VStack {
                 HStack {
                     // Close Button
@@ -1116,7 +1160,7 @@ struct FullImageView: View {
                     .disabled(isSaving || showSaveSuccess)
                 }
                 .padding(.horizontal, 20)
-                .padding(.top, 60)
+                .padding(.top, 36)  // 调整为36
                 
                 Spacer()
             }

@@ -62,10 +62,13 @@ class MyWorksManager: ObservableObject {
                 }
                 try imageData.write(to: fileURL)
                 
-                // 生成缩略图
+                // 生成缩略图 - 使用屏幕比例（竖屏手机比例）
                 let thumbnailFileName = "thumb_\(Int(timestamp)).jpg"
                 let thumbnailURL = self.worksDirectory.appendingPathComponent(thumbnailFileName)
-                if let thumbnail = self.createThumbnail(from: image, size: CGSize(width: 400, height: 400)) {
+                // 使用手机屏幕比例生成缩略图
+                let screenAspect = UIScreen.main.bounds.width / UIScreen.main.bounds.height
+                let thumbnailSize = CGSize(width: 600, height: 600 / screenAspect)  // 保持屏幕比例
+                if let thumbnail = self.createThumbnail(from: image, size: thumbnailSize) {
                     if let thumbnailData = thumbnail.jpegData(compressionQuality: 0.8) {
                         try thumbnailData.write(to: thumbnailURL)
                     }
