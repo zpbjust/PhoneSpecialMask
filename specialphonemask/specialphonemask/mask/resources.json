@@ -14,7 +14,7 @@
       "title": "日落余晖",
       "description": "温暖的日落色调，渐变效果柔和",
       "category": "nature",
-      "isPremium": false
+      "isPremium": true
     },
     {
       "id": "3",
@@ -150,7 +150,7 @@
       "stickers": ["cat_sticker_01", "cat_sticker_02", "cat_sticker_03"],
       "suitableScene": "猫奴、宠物照片",
       "color": "orange",
-      "isPremium": false
+      "isPremium": true
     },
     {
       "id": "cloud",
