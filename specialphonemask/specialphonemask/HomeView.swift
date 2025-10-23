@@ -13,6 +13,10 @@ struct HomeView: View {
     @State private var currentStickerIndex = 0
     @State private var showGridView = false
     
+    // 弹窗状态 - 提升到HomeView层级
+    @State private var showWallpaperGuide = false
+    @State private var showPermissionDenied = false
+    
     var body: some View {
         ZStack {
             // Main Content
@@ -20,7 +24,9 @@ struct HomeView: View {
                 // Wallpapers Tab
                 WallpaperGalleryView(
                     currentIndex: $currentWallpaperIndex,
-                    showGridView: $showGridView
+                    showGridView: $showGridView,
+                    showGuide: $showWallpaperGuide,
+                    showPermissionDenied: $showPermissionDenied
                 )
                 .tag(HomeTab.wallpapers)
                 
@@ -61,11 +67,30 @@ struct HomeView: View {
                 }
                 .ignoresSafeArea()
             )
+            
+            // 全局弹窗 - 在ZStack最上层，覆盖所有内容包括导航栏
+            if showWallpaperGuide {
+                WallpaperGuideView(onDismiss: {
+                    showWallpaperGuide = false
+                })
+                .zIndex(1000)
+            }
+            
+            if showPermissionDenied {
+                PermissionDeniedGuideView(
+                    title: "需要相册权限",
+                    message: "请允许访问相册，以便保存精美壁纸到您的设备",
+                    onDismiss: {
+                        showPermissionDenied = false
+                    }
+                )
+                .zIndex(1000)
+            }
         }
         .ignoresSafeArea()
         .preferredColorScheme(.dark)
     }
-}
+ }
 
 // MARK: - Minimalist Navigation Bar
 struct MinimalistNavigationBar: View {
@@ -169,6 +194,9 @@ struct MinimalistNavigationBar: View {
 struct WallpaperGalleryView: View {
     @Binding var currentIndex: Int
     @Binding var showGridView: Bool
+    @Binding var showGuide: Bool
+    @Binding var showPermissionDenied: Bool
+    
     @State private var wallpapers = Wallpaper.sampleWallpapers
     @State private var dragOffset: CGFloat = 0
     
@@ -178,9 +206,15 @@ struct WallpaperGalleryView: View {
             if !showGridView {
                 TabView(selection: $currentIndex) {
                     ForEach(Array(wallpapers.enumerated()), id: \.element.id) { index, wallpaper in
-                        WallpaperPageView(wallpaper: wallpaper, currentIndex: index + 1, total: wallpapers.count)
-                            .ignoresSafeArea()
-                            .tag(index)
+                        WallpaperPageView(
+                            wallpaper: wallpaper,
+                            currentIndex: index + 1,
+                            total: wallpapers.count,
+                            showGuide: $showGuide,
+                            showPermissionDenied: $showPermissionDenied
+                        )
+                        .ignoresSafeArea()
+                        .tag(index)
                     }
                 }
                 .tabViewStyle(.page(indexDisplayMode: .never))
@@ -204,11 +238,11 @@ struct WallpaperPageView: View {
     let wallpaper: Wallpaper
     let currentIndex: Int
     let total: Int
+    @Binding var showGuide: Bool
+    @Binding var showPermissionDenied: Bool
     
     @State private var showDetails = false
     @State private var isSaved = false
-    @State private var showGuide = false
-    @State private var showPermissionDenied = false
     
     var body: some View {
         ZStack {
@@ -248,20 +282,8 @@ struct WallpaperPageView: View {
                 )
                 .padding(.bottom, 40)
             }
-            
-            // Wallpaper Guide Overlay
-            if showGuide {
-                WallpaperGuideView(onDismiss: {
-                    showGuide = false
-                })
-            }
         }
         .edgesIgnoringSafeArea(.all)
-        .withPhotoLibraryPermission(
-            showDeniedGuide: $showPermissionDenied,
-            title: "需要相册权限",
-            message: "请允许访问相册，以便保存精美壁纸到您的设备"
-        )
     }
     
     private func saveWallpaper() {
@@ -757,7 +779,7 @@ struct WallpaperGuideView: View {
                         .font(.system(size: 24, weight: .bold))
                         .foregroundColor(.white)
                 }
-                .padding(.top, 40)
+                .padding(.top, 80)  // 增加顶部padding，避免被刘海遮挡
                 
                 // Guide Steps
                 VStack(alignment: .leading, spacing: 24) {

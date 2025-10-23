@@ -119,6 +119,7 @@ struct PermissionDeniedGuideView: View {
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 40)
                 }
+                .padding(.top, 80)  // 增加顶部padding，避免被刘海遮挡
                 
                 // Guide Steps
                 VStack(alignment: .leading, spacing: 20) {
