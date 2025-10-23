@@ -185,7 +185,7 @@ struct StickerEditorView: View {
             }
         }
         .photosPicker(isPresented: $showImagePicker, selection: $photoPickerItem, matching: .images)
-        .onChange(of: photoPickerItem) { _, newItem in
+        .onChange(of: photoPickerItem) { newItem in
             Task {
                 if let data = try? await newItem?.loadTransferable(type: Data.self),
                    let image = UIImage(data: data) {
