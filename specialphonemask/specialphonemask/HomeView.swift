@@ -733,33 +733,426 @@ struct StickerBottomBar: View {
 
 // MARK: - My Works View
 struct MyWorksView: View {
-    @State private var savedWorks: [String] = []
+    @StateObject private var worksManager = MyWorksManager.shared
+    
+    let columns = [
+        GridItem(.flexible(), spacing: 16),
+        GridItem(.flexible(), spacing: 16)
+    ]
     
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            // 背景渐变
+            LinearGradient(
+                colors: [
+                    Color(red: 0.98, green: 0.98, blue: 1.0),
+                    Color(red: 0.95, green: 0.96, blue: 0.98)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
             
-            VStack(spacing: 20) {
-                Spacer()
-                
-                // Empty State
-                VStack(spacing: 16) {
-                    Image(systemName: "photo.on.rectangle.angled")
-                        .font(.system(size: 60))
-                        .foregroundColor(.white.opacity(0.3))
+            VStack(spacing: 0) {
+                // Header - 内购信息区域
+                VStack(spacing: 12) {
+                    Text("我的")
+                        .font(.system(size: 32, weight: .bold))
+                        .foregroundColor(.primary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     
-                    Text("还没有作品")
-                        .font(.system(size: 24, weight: .semibold))
-                        .foregroundColor(.white)
-                    
-                    Text("去创作你的第一张壁纸吧！")
-                        .font(.system(size: 16))
-                        .foregroundColor(.white.opacity(0.6))
+                    // Premium Banner（预留内购位置）
+                    PremiumBanner()
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 60)
+                .padding(.bottom, 20)
+                
+                // Works Content
+                if worksManager.works.isEmpty {
+                    // Empty State
+                    VStack(spacing: 24) {
+                        Spacer()
+                        
+                        ZStack {
+                            // Background circle
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            Color.blue.opacity(0.1),
+                                            Color.purple.opacity(0.1)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 120, height: 120)
+                            
+                            Image(systemName: "photo.stack")
+                                .font(.system(size: 50))
+                                .foregroundColor(.blue)
+                        }
+                        
+                        VStack(spacing: 12) {
+                            Text("还没有作品")
+                                .font(.system(size: 24, weight: .bold))
+                                .foregroundColor(.primary)
+                            
+                            Text("创作专属壁纸，让锁屏更个性")
+                                .font(.system(size: 16))
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                    }
+                } else {
+                    // Works Grid
+                    ScrollView(showsIndicators: false) {
+                        LazyVGrid(columns: columns, spacing: 16) {
+                            ForEach(worksManager.works) { work in
+                                WorkCard(work: work, worksManager: worksManager)
+                            }
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 10)
+                        .padding(.bottom, 40)
+                    }
+                }
+            }
+        }
+        .preferredColorScheme(.light)  // 强制使用亮色模式
+    }
+}
+
+// MARK: - Premium Banner
+struct PremiumBanner: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            // Icon
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Color.orange, Color.pink],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 44, height: 44)
+                
+                Image(systemName: "crown.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(.white)
+            }
+            
+            // Text
+            VStack(alignment: .leading, spacing: 4) {
+                Text("升级至专业版")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(.primary)
+                
+                Text("解锁更多主题和功能")
+                    .font(.system(size: 13))
+                    .foregroundColor(.secondary)
+            }
+            
+            Spacer()
+            
+            // Arrow
+            Image(systemName: "chevron.right")
+                .font(.system(size: 14, weight: .semibold))
+                .foregroundColor(.secondary)
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color.white)
+                .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
+        )
+    }
+}
+
+// MARK: - Work Card
+struct WorkCard: View {
+    let work: MyWork
+    @ObservedObject var worksManager: MyWorksManager
+    
+    @State private var showDeleteConfirmation = false
+    @State private var showFullImage = false
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Work Thumbnail
+            ZStack {
+                if let thumbnail = worksManager.loadWorkImage(work, useThumbnail: true) {
+                    Image(uiImage: thumbnail)
+                        .resizable()
+                        .aspectRatio(contentMode: .fill)  // 使用 fill 不拉伸
+                        .frame(width: (UIScreen.main.bounds.width - 56) / 2, height: 240)
+                        .clipped()
+                } else {
+                    // Placeholder
+                    Rectangle()
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.gray.opacity(0.1),
+                                    Color.gray.opacity(0.05)
+                                ],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(height: 240)
+                        .overlay(
+                            Image(systemName: "photo")
+                                .font(.system(size: 40))
+                                .foregroundColor(.gray.opacity(0.3))
+                        )
+                }
+                
+                // Actions Overlay (渐变背景)
+                VStack {
+                    Spacer()
+                    
+                    HStack(spacing: 10) {
+                        // View Button
+                        ActionButton(
+                            icon: "eye.fill",
+                            color: .blue,
+                            action: { showFullImage = true }
+                        )
+                        
+                        // Delete Button
+                        ActionButton(
+                            icon: "trash.fill",
+                            color: .red,
+                            action: { showDeleteConfirmation = true }
+                        )
+                    }
+                    .padding(.bottom, 12)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(
+                    LinearGradient(
+                        colors: [
+                            .clear,
+                            .black.opacity(0.2),
+                            .black.opacity(0.5)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+            }
+            .clipShape(RoundedRectangle(cornerRadius: 16))
+            
+            // Date Info
+            HStack {
+                Image(systemName: "clock")
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                
+                Text(work.createdAt, style: .date)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(.secondary)
                 
                 Spacer()
             }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.white)
+            )
+            .offset(y: -8)
+            .padding(.horizontal, 8)
         }
+        .background(
+            RoundedRectangle(cornerRadius: 18)
+                .fill(Color.white)
+                .shadow(color: .black.opacity(0.08), radius: 12, x: 0, y: 4)
+        )
+        .alert("确认删除", isPresented: $showDeleteConfirmation) {
+            Button("取消", role: .cancel) { }
+            Button("删除", role: .destructive) {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                    worksManager.deleteWork(work)
+                }
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.warning)
+            }
+        } message: {
+            Text("删除后无法恢复此作品")
+        }
+        .fullScreenCover(isPresented: $showFullImage) {
+            if let fullImage = worksManager.loadWorkImage(work) {
+                FullImageView(image: fullImage, onDismiss: {
+                    showFullImage = false
+                })
+            }
+        }
+    }
+}
+
+// MARK: - Action Button
+struct ActionButton: View {
+    let icon: String
+    let color: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: {
+            action()
+            let generator = UIImpactFeedbackGenerator(style: .medium)
+            generator.impactOccurred()
+        }) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .semibold))
+                .foregroundColor(.white)
+                .frame(width: 36, height: 36)
+                .background(
+                    Circle()
+                        .fill(color)
+                        .shadow(color: color.opacity(0.4), radius: 8, x: 0, y: 4)
+                )
+        }
+    }
+}
+
+// MARK: - Full Image View
+struct FullImageView: View {
+    let image: UIImage
+    let onDismiss: () -> Void
+    
+    @State private var showSaveSuccess = false
+    @State private var isSaving = false
+    
+    var body: some View {
+        ZStack {
+            // Background
+            Color.black.ignoresSafeArea()
+            
+            // Image (居中显示)
+            GeometryReader { geometry in
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: geometry.size.width, height: geometry.size.height)
+            }
+            .ignoresSafeArea()
+            
+            // Top Bar
+            VStack {
+                HStack {
+                    // Close Button
+                    Button(action: onDismiss) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.white.opacity(0.2))
+                                .frame(width: 44, height: 44)
+                            
+                            Image(systemName: "xmark")
+                                .font(.system(size: 16, weight: .semibold))
+                                .foregroundColor(.white)
+                        }
+                    }
+                    
+                    Spacer()
+                    
+                    // Save Button
+                    Button(action: saveToAlbum) {
+                        HStack(spacing: 8) {
+                            if isSaving {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    .scaleEffect(0.8)
+                            } else if showSaveSuccess {
+                                Image(systemName: "checkmark")
+                                    .font(.system(size: 14, weight: .bold))
+                            } else {
+                                Image(systemName: "square.and.arrow.down")
+                                    .font(.system(size: 16, weight: .semibold))
+                            }
+                            
+                            Text(showSaveSuccess ? "已保存" : "保存")
+                                .font(.system(size: 15, weight: .semibold))
+                        }
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(
+                            Capsule()
+                                .fill(showSaveSuccess ? Color.green : Color.blue)
+                        )
+                    }
+                    .disabled(isSaving || showSaveSuccess)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 60)
+                
+                Spacer()
+            }
+            
+            // Success Overlay
+            if showSaveSuccess {
+                VStack {
+                    Spacer()
+                    
+                    HStack(spacing: 12) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.green)
+                        
+                        Text("已保存到相册")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.white)
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 16)
+                    .background(
+                        Capsule()
+                            .fill(Color.white.opacity(0.2))
+                            .background(.ultraThinMaterial)
+                    )
+                    .padding(.bottom, 100)
+                }
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+    }
+    
+    private func saveToAlbum() {
+        isSaving = true
+        
+        PhotoLibraryPermissionManager.shared.saveImage(
+            image,
+            onSuccess: {
+                withAnimation {
+                    isSaving = false
+                    showSaveSuccess = true
+                }
+                
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.success)
+                
+                // 3秒后隐藏成功提示
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                    withAnimation {
+                        showSaveSuccess = false
+                    }
+                }
+            },
+            onFailure: { error in
+                withAnimation {
+                    isSaving = false
+                }
+                
+                let generator = UINotificationFeedbackGenerator()
+                generator.notificationOccurred(.error)
+            }
+        )
     }
 }
 

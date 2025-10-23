@@ -48,7 +48,7 @@ struct StickerTheme: Identifiable, Hashable {
 enum HomeTab: String, CaseIterable {
     case wallpapers = "快速壁纸"
     case stickers = "贴纸主题"
-    case myWorks = "我的作品"
+    case myWorks = "我的"
     
     var icon: String {
         switch self {

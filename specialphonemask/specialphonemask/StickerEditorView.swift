@@ -242,7 +242,17 @@ struct StickerEditorView: View {
             // 渲染高分辨率画布
             let canvasImage = renderCanvas()
             
-            // Request permission and save
+            // 1. 保存到Documents（用于"我的作品"展示）
+            MyWorksManager.shared.saveWork(image: canvasImage) { result in
+                switch result {
+                case .success(let work):
+                    print("✅ 作品已保存到Documents: \(work.fileName)")
+                case .failure(let error):
+                    print("❌ 保存作品失败: \(error.localizedDescription)")
+                }
+            }
+            
+            // 2. 保存到相册（用户使用）
             PhotoLibraryPermissionManager.shared.saveImage(
                 canvasImage,
                 onSuccess: {
