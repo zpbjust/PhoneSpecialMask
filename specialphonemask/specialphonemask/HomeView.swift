@@ -50,19 +50,23 @@ struct HomeView: View {
                     selectedTab: $selectedTab,
                     showGridView: $showGridView
                 )
-                .padding(.top, 50)  // Increased padding for safe area
+                .padding(.top, 70)  // 增加顶部间距，避免被灵动岛遮挡
                 
                 Spacer()
             }
             .background(
-                // Gradient fade from top
+                // Gradient fade from top - 更柔和的渐变
                 VStack {
                     LinearGradient(
-                        colors: [.black.opacity(0.5), .clear],
+                        colors: [
+                            Color.black.opacity(0.3),
+                            Color.black.opacity(0.15),
+                            Color.clear
+                        ],
                         startPoint: .top,
                         endPoint: .bottom
                     )
-                    .frame(height: 150)
+                    .frame(height: 180)
                     
                     Spacer()
                 }
@@ -117,11 +121,11 @@ struct MinimalistNavigationBar: View {
                         HStack(spacing: 6) {
                             // Dot Indicator
                             Circle()
-                                .fill(selectedTab == tab ? Color.white : Color.white.opacity(0.3))
+                                .fill(selectedTab == tab ? Color(red: 0.2, green: 0.5, blue: 1.0) : Color.gray.opacity(0.5))
                                 .frame(width: selectedTab == tab ? 6 : 5, height: selectedTab == tab ? 6 : 5)
                                 .overlay(
                                     Circle()
-                                        .stroke(Color.white.opacity(0.5), lineWidth: selectedTab == tab ? 1 : 0)
+                                        .stroke(Color(red: 0.2, green: 0.5, blue: 1.0).opacity(0.3), lineWidth: selectedTab == tab ? 1 : 0)
                                         .scaleEffect(selectedTab == tab ? 1.5 : 1.0)
                                         .opacity(selectedTab == tab ? 0.3 : 0)
                                 )
@@ -130,7 +134,7 @@ struct MinimalistNavigationBar: View {
                             if selectedTab == tab {
                                 Text(tab.rawValue)
                                     .font(.system(size: 13, weight: .semibold))
-                                    .foregroundColor(.white)
+                                    .foregroundColor(Color(red: 0.2, green: 0.5, blue: 1.0))
                                     .transition(.scale.combined(with: .opacity))
                             }
                         }
@@ -138,20 +142,17 @@ struct MinimalistNavigationBar: View {
                         .padding(.vertical, 8)
                         .background(
                             Capsule()
-                                .fill(selectedTab == tab ? Color.white.opacity(0.15) : Color.clear)
+                                .fill(selectedTab == tab ? Color(red: 0.2, green: 0.5, blue: 1.0).opacity(0.15) : Color.clear)
                         )
                     }
                 }
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 6)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
             .background(
                 Capsule()
-                    .fill(Color.white.opacity(0.08))
-                    .background(
-                        Capsule()
-                            .fill(.ultraThinMaterial)
-                    )
+                    .fill(.ultraThinMaterial)  // 使用毛玻璃效果
+                    .shadow(color: .black.opacity(0.2), radius: 15, x: 0, y: 5)
             )
             
             Spacer()
@@ -176,16 +177,13 @@ struct MinimalistNavigationBar: View {
                                 .transition(.scale.combined(with: .opacity))
                         }
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(showGridView ? Color(red: 0.2, green: 0.5, blue: 1.0) : .primary)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 10)
                     .background(
                         Capsule()
-                            .fill(showGridView ? Color.blue.opacity(0.3) : Color.white.opacity(0.1))
-                            .background(
-                                Capsule()
-                                    .fill(.ultraThinMaterial)
-                            )
+                            .fill(.ultraThinMaterial)  // 使用毛玻璃效果
+                            .shadow(color: .black.opacity(0.2), radius: 15, x: 0, y: 5)
                     )
                 }
             }
@@ -453,54 +451,67 @@ struct WallpaperGridView: View {
     ]
     
     var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: 12) {
-                ForEach(Array(wallpapers.enumerated()), id: \.element.id) { index, wallpaper in
-                    Button(action: {
-                        currentIndex = index
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                            showGridView = false
-                        }
-                        
-                        let generator = UIImpactFeedbackGenerator(style: .medium)
-                        generator.impactOccurred()
-                    }) {
-                        ZStack(alignment: .bottomLeading) {
-                            // Wallpaper Thumbnail
-                            MaskImageView(wallpaper.imageName, contentMode: .fill)
-                                .frame(height: 240)
-                                .clipShape(RoundedRectangle(cornerRadius: 16))
-                            
-                            // Gradient Overlay
-                            LinearGradient(
-                                colors: [.clear, .black.opacity(0.6)],
-                                startPoint: .center,
-                                endPoint: .bottom
-                            )
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                            
-                            // Title
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(wallpaper.title)
-                                    .font(.system(size: 14, weight: .semibold))
-                                    .foregroundColor(.white)
-                                
-                                Text("\(index + 1)/\(wallpapers.count)")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.white.opacity(0.7))
+        ZStack {
+            // 背景渐变
+            LinearGradient(
+                colors: [
+                    Color(red: 0.98, green: 0.98, blue: 1.0),
+                    Color(red: 0.95, green: 0.96, blue: 0.98)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+            
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 12) {
+                    ForEach(Array(wallpapers.enumerated()), id: \.element.id) { index, wallpaper in
+                        Button(action: {
+                            currentIndex = index
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                showGridView = false
                             }
-                            .padding(12)
+                            
+                            let generator = UIImpactFeedbackGenerator(style: .medium)
+                            generator.impactOccurred()
+                        }) {
+                            ZStack(alignment: .bottomLeading) {
+                                // Wallpaper Thumbnail
+                                MaskImageView(wallpaper.imageName, contentMode: .fill)
+                                    .frame(height: 240)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                                
+                                // Gradient Overlay
+                                LinearGradient(
+                                    colors: [.clear, .black.opacity(0.6)],
+                                    startPoint: .center,
+                                    endPoint: .bottom
+                                )
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                                
+                                // Title
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(wallpaper.title)
+                                        .font(.system(size: 14, weight: .semibold))
+                                        .foregroundColor(.white)
+                                    
+                                    Text("\(index + 1)/\(wallpapers.count)")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.white.opacity(0.7))
+                                }
+                                .padding(12)
+                            }
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(currentIndex == index ? Color.blue : Color.clear, lineWidth: 3)
+                            )
                         }
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(currentIndex == index ? Color.blue : Color.clear, lineWidth: 3)
-                        )
                     }
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 120)
+                .padding(.bottom, 40)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 120)
-            .padding(.bottom, 40)
         }
     }
 }
@@ -550,55 +561,68 @@ struct StickerGridView: View {
     ]
     
     var body: some View {
-        ScrollView {
-            LazyVGrid(columns: columns, spacing: 12) {
-                ForEach(Array(themes.enumerated()), id: \.element.id) { index, theme in
-                    Button(action: {
-                        currentIndex = index
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
-                            showGridView = false
-                        }
-                        
-                        let generator = UIImpactFeedbackGenerator(style: .medium)
-                        generator.impactOccurred()
-                    }) {
-                        ZStack(alignment: .bottomLeading) {
-                            // Theme Main Image
-                            MaskImageView(theme.mainImage, contentMode: .fill)
+        ZStack {
+            // 背景渐变
+            LinearGradient(
+                colors: [
+                    Color(red: 0.98, green: 0.98, blue: 1.0),
+                    Color(red: 0.95, green: 0.96, blue: 0.98)
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+            
+            ScrollView {
+                LazyVGrid(columns: columns, spacing: 12) {
+                    ForEach(Array(themes.enumerated()), id: \.element.id) { index, theme in
+                        Button(action: {
+                            currentIndex = index
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                showGridView = false
+                            }
+                            
+                            let generator = UIImpactFeedbackGenerator(style: .medium)
+                            generator.impactOccurred()
+                        }) {
+                            ZStack(alignment: .bottomLeading) {
+                                // Theme Main Image
+                                MaskImageView(theme.mainImage, contentMode: .fill)
+                                    .frame(height: 240)
+                                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                                
+                                // Gradient Overlay
+                                LinearGradient(
+                                    colors: [.clear, .black.opacity(0.6)],
+                                    startPoint: .center,
+                                    endPoint: .bottom
+                                )
                                 .frame(height: 240)
                                 .clipShape(RoundedRectangle(cornerRadius: 16))
-                            
-                            // Gradient Overlay
-                            LinearGradient(
-                                colors: [.clear, .black.opacity(0.6)],
-                                startPoint: .center,
-                                endPoint: .bottom
-                            )
-                            .frame(height: 240)
-                            .clipShape(RoundedRectangle(cornerRadius: 16))
-                            
-                            // Theme Info
-                            VStack(alignment: .leading, spacing: 4) {
-                                Text(theme.name)
-                                    .font(.system(size: 16, weight: .bold))
-                                    .foregroundColor(.white)
                                 
-                                Text("\(theme.stickerCount) 个贴纸")
-                                    .font(.system(size: 12))
-                                    .foregroundColor(.white.opacity(0.8))
+                                // Theme Info
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text(theme.name)
+                                        .font(.system(size: 16, weight: .bold))
+                                        .foregroundColor(.white)
+                                    
+                                    Text("\(theme.stickerCount) 个贴纸")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(.white.opacity(0.8))
+                                }
+                                .padding(12)
                             }
-                            .padding(12)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .stroke(currentIndex == index ? Color.blue : Color.clear, lineWidth: 3)
+                            )
                         }
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(currentIndex == index ? Color.blue : Color.clear, lineWidth: 3)
-                        )
                     }
                 }
+                .padding(.horizontal, 20)
+                .padding(.top, 120)
+                .padding(.bottom, 40)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 120)
-            .padding(.bottom, 40)
         }
     }
 }
@@ -742,11 +766,12 @@ struct MyWorksView: View {
     
     var body: some View {
         ZStack {
-            // 背景渐变
+            // 背景渐变 - 调整色调更柔和
             LinearGradient(
                 colors: [
-                    Color(red: 0.98, green: 0.98, blue: 1.0),
-                    Color(red: 0.95, green: 0.96, blue: 0.98)
+                    Color(red: 0.96, green: 0.97, blue: 0.99),
+                    Color(red: 0.93, green: 0.95, blue: 0.98),
+                    Color(red: 0.90, green: 0.93, blue: 0.97)
                 ],
                 startPoint: .top,
                 endPoint: .bottom
@@ -754,7 +779,7 @@ struct MyWorksView: View {
             .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // Header - 内购信息区域
+                // Header - 内购信息区域 - 增加顶部间距
                 VStack(spacing: 12) {
                     Text("我的")
                         .font(.system(size: 32, weight: .bold))
@@ -765,7 +790,7 @@ struct MyWorksView: View {
                     PremiumBanner()
                 }
                 .padding(.horizontal, 20)
-                .padding(.top, 60)
+                .padding(.top, 100)  // 增加顶部间距，从60改为100
                 .padding(.bottom, 20)
                 
                 // Works Content
@@ -886,9 +911,10 @@ struct WorkCard: View {
             // Work Thumbnail
             ZStack {
                 if let thumbnail = worksManager.loadWorkImage(work, useThumbnail: true) {
+                    // 使用固定比例显示，不拉伸
                     Image(uiImage: thumbnail)
                         .resizable()
-                        .aspectRatio(contentMode: .fill)  // 使用 fill 不拉伸
+                        .scaledToFill()
                         .frame(width: (UIScreen.main.bounds.width - 56) / 2, height: 240)
                         .clipped()
                 } else {

@@ -135,9 +135,37 @@ class MyWorksManager: ObservableObject {
     }
     
     private func createThumbnail(from image: UIImage, size: CGSize) -> UIImage? {
+        // 计算 aspectFill 的绘制区域（保持比例，填满目标尺寸）
+        let imageAspect = image.size.width / image.size.height
+        let targetAspect = size.width / size.height
+        
+        var drawRect: CGRect
+        if imageAspect > targetAspect {
+            // 图片更宽，按高度缩放
+            let scaledWidth = size.height * imageAspect
+            drawRect = CGRect(
+                x: (size.width - scaledWidth) / 2,
+                y: 0,
+                width: scaledWidth,
+                height: size.height
+            )
+        } else {
+            // 图片更高，按宽度缩放
+            let scaledHeight = size.width / imageAspect
+            drawRect = CGRect(
+                x: 0,
+                y: (size.height - scaledHeight) / 2,
+                width: size.width,
+                height: scaledHeight
+            )
+        }
+        
         let renderer = UIGraphicsImageRenderer(size: size)
-        return renderer.image { _ in
-            image.draw(in: CGRect(origin: .zero, size: size))
+        return renderer.image { context in
+            // 裁剪到目标尺寸
+            UIRectClip(CGRect(origin: .zero, size: size))
+            // 绘制图片（保持比例）
+            image.draw(in: drawRect)
         }
     }
 }
