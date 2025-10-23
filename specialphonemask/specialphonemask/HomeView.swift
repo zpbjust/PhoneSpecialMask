@@ -199,7 +199,7 @@ struct WallpaperGalleryView: View {
     @Binding var showGuide: Bool
     @Binding var showPermissionDenied: Bool
     
-    @State private var wallpapers = Wallpaper.sampleWallpapers
+    @State private var wallpapers: [Wallpaper] = []
     @State private var dragOffset: CGFloat = 0
     @AppStorage("dontShowGuideAgain") private var dontShowGuideAgain = false
     
@@ -231,6 +231,13 @@ struct WallpaperGalleryView: View {
                     showGridView: $showGridView
                 )
                 .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
+        }
+        .onAppear {
+            if wallpapers.isEmpty {
+                print("🔄 Loading wallpapers from ResourceLoader...")
+                wallpapers = Wallpaper.sampleWallpapers
+                print("📊 Loaded \(wallpapers.count) wallpapers")
             }
         }
     }
@@ -275,6 +282,7 @@ struct WallpaperPageView: View {
                     description: wallpaper.description,
                     currentIndex: currentIndex,
                     total: total,
+                    isPremium: wallpaper.isPremium,
                     showDetails: $showDetails,
                     isSaved: $isSaved,
                     onSave: {
@@ -361,10 +369,14 @@ struct BottomInfoBar: View {
     let description: String
     let currentIndex: Int
     let total: Int
+    let isPremium: Bool
     @Binding var showDetails: Bool
     @Binding var isSaved: Bool
     let onSave: () -> Void
     let onEdit: () -> Void
+    
+    @StateObject private var purchaseManager = RCPurchaseManager.shared
+    @State private var showPaywall = false
     
     var body: some View {
         VStack(spacing: 16) {
@@ -392,12 +404,31 @@ struct BottomInfoBar: View {
             // Action Buttons
             HStack(spacing: 16) {
                 // Save Button
-                Button(action: onSave) {
+                Button(action: {
+                    // Check premium status before saving
+                    if isPremium && !purchaseManager.hasPremium {
+                        showPaywall = true
+                    } else {
+                        onSave()
+                    }
+                }) {
                     HStack(spacing: 8) {
-                        Image(systemName: isSaved ? "checkmark.circle.fill" : "square.and.arrow.down.fill")
-                            .font(.system(size: 18))
-                        Text(isSaved ? "已保存" : "保存到相册")
-                            .font(.system(size: 16, weight: .semibold))
+                        if isSaved {
+                            Image(systemName: "checkmark.circle.fill")
+                                .font(.system(size: 18))
+                            Text("已保存")
+                                .font(.system(size: 16, weight: .semibold))
+                        } else if isPremium && !purchaseManager.hasPremium {
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 18))
+                            Text("保存到相册")
+                                .font(.system(size: 16, weight: .semibold))
+                        } else {
+                            Image(systemName: "square.and.arrow.down.fill")
+                                .font(.system(size: 18))
+                            Text("保存到相册")
+                                .font(.system(size: 16, weight: .semibold))
+                        }
                     }
                     .foregroundColor(isSaved ? .green : .white)
                     .frame(maxWidth: .infinity)
@@ -436,6 +467,9 @@ struct BottomInfoBar: View {
             .padding(.horizontal, 30)
         }
         .padding(.horizontal, 20)
+        .fullScreenCover(isPresented: $showPaywall) {
+            RCPaywallView()
+        }
     }
 }
 
@@ -520,7 +554,7 @@ struct WallpaperGridView: View {
 struct StickerGalleryView: View {
     @Binding var currentIndex: Int
     @Binding var showGridView: Bool
-    @State private var themes = StickerTheme.sampleThemes
+    @State private var themes: [StickerTheme] = []
     
     var body: some View {
         ZStack {
@@ -544,6 +578,13 @@ struct StickerGalleryView: View {
                     showGridView: $showGridView
                 )
                 .transition(.opacity.combined(with: .scale(scale: 0.95)))
+            }
+        }
+        .onAppear {
+            if themes.isEmpty {
+                print("🔄 Loading sticker themes from ResourceLoader...")
+                themes = StickerTheme.sampleThemes
+                print("📊 Loaded \(themes.count) sticker themes")
             }
         }
     }
@@ -852,49 +893,92 @@ struct MyWorksView: View {
 
 // MARK: - Premium Banner
 struct PremiumBanner: View {
+    @StateObject private var purchaseManager = RCPurchaseManager.shared
+    @State private var showPaywall = false
+    
     var body: some View {
-        HStack(spacing: 12) {
-            // Icon
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [Color.orange, Color.pink],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
+        Button(action: {
+            if !purchaseManager.hasPremium {
+                showPaywall = true
+            }
+        }) {
+            HStack(spacing: 12) {
+                // Icon
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: purchaseManager.hasPremium ? [Color.green, Color.blue] : [Color.orange, Color.pink],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
                         )
-                    )
-                    .frame(width: 44, height: 44)
+                        .frame(width: 44, height: 44)
+                    
+                    Image(systemName: purchaseManager.hasPremium ? "checkmark.circle.fill" : "crown.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(.white)
+                }
                 
-                Image(systemName: "crown.fill")
-                    .font(.system(size: 20))
-                    .foregroundColor(.white)
-            }
-            
-            // Text
-            VStack(alignment: .leading, spacing: 4) {
-                Text("升级至专业版")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.primary)
+                // Text
+                VStack(alignment: .leading, spacing: 4) {
+                    if purchaseManager.hasPremium {
+                        Text("专业版会员")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.primary)
+                        
+                        if let expirationDate = purchaseManager.subscriptionExpirationDate {
+                            if purchaseManager.willRenew {
+                                Text("到期时间：\(formatDate(expirationDate))")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.secondary)
+                            } else {
+                                Text("到期时间：\(formatDate(expirationDate))（不续费）")
+                                    .font(.system(size: 13))
+                                    .foregroundColor(.orange)
+                            }
+                        } else {
+                            Text("终身会员")
+                                .font(.system(size: 13))
+                                .foregroundColor(.secondary)
+                        }
+                    } else {
+                        Text("升级至专业版")
+                            .font(.system(size: 16, weight: .semibold))
+                            .foregroundColor(.primary)
+                        
+                        Text("解锁全部主题和功能")
+                            .font(.system(size: 13))
+                            .foregroundColor(.secondary)
+                    }
+                }
                 
-                Text("解锁更多主题和功能")
-                    .font(.system(size: 13))
-                    .foregroundColor(.secondary)
+                Spacer()
+                
+                // Arrow
+                if !purchaseManager.hasPremium {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.secondary)
+                }
             }
-            
-            Spacer()
-            
-            // Arrow
-            Image(systemName: "chevron.right")
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundColor(.secondary)
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(Color.white)
+                    .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
+            )
         }
-        .padding(16)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.white)
-                .shadow(color: .black.opacity(0.05), radius: 10, x: 0, y: 4)
-        )
+        .buttonStyle(PlainButtonStyle())
+        .fullScreenCover(isPresented: $showPaywall) {
+            RCPaywallView()
+        }
+    }
+    
+    private func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy年MM月dd日"
+        return formatter.string(from: date)
     }
 }
 

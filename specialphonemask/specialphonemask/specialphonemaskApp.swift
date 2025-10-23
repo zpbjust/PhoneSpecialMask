@@ -9,6 +9,12 @@ import SwiftUI
 
 @main
 struct specialphonemaskApp: App {
+    
+    init() {
+        // Initialize RevenueCat
+        RCPurchaseManager.shared.configure()
+    }
+    
     var body: some Scene {
         WindowGroup {
             ContentView()

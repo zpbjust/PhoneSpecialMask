@@ -1,0 +1,19 @@
+// swift-tools-version:5.9
+import PackageDescription
+
+let package = Package(
+    name: "specialphonemask",
+    platforms: [.iOS(.v16)],
+    dependencies: [
+        .package(url: "https://github.com/RevenueCat/purchases-ios.git", from: "5.14.1")
+    ],
+    targets: [
+        .target(
+            name: "specialphonemask",
+            dependencies: [
+                .product(name: "RevenueCat", package: "purchases-ios")
+            ]
+        )
+    ]
+)
+

@@ -31,7 +31,9 @@ struct StickerEditorView: View {
     @State private var showPermissionDenied = false
     @State private var showSaveSuccess = false
     @State private var showGuide = false
+    @State private var showPaywall = false
     @AppStorage("dontShowGuideAgain") private var dontShowGuideAgain = false
+    @StateObject private var purchaseManager = RCPurchaseManager.shared
     
     // Canvas ID for screenshot
     @State private var canvasID = UUID()
@@ -115,11 +117,15 @@ struct StickerEditorView: View {
             
             // Top Bar
             VStack {
-                EditorTopBar(onClose: {
-                    dismiss()
-                }, onSave: {
-                    saveCompositeImage()
-                })
+                EditorTopBar(
+                    onClose: {
+                        dismiss()
+                    },
+                    onSave: {
+                        saveCompositeImage()
+                    },
+                    isPremium: theme.isPremium
+                )
                 .padding(.top, 50)
                 
                 Spacer()
@@ -198,6 +204,9 @@ struct StickerEditorView: View {
             title: "需要相册权限",
             message: "请允许访问相册，以便保存您的创作作品"
         )
+        .fullScreenCover(isPresented: $showPaywall) {
+            RCPaywallView()
+        }
         .ignoresSafeArea()
     }
     
@@ -234,6 +243,12 @@ struct StickerEditorView: View {
     
     // MARK: - Save Composite Image (高分辨率渲染 - 只渲染画布)
     private func saveCompositeImage() {
+        // Check premium status first
+        if theme.isPremium && !purchaseManager.hasPremium {
+            showPaywall = true
+            return
+        }
+        
         // 取消选中状态，确保渲染时没有选中框
         selectedStickerId = nil
         
@@ -263,6 +278,15 @@ struct StickerEditorView: View {
                     // Show success overlay
                     withAnimation {
                         showSaveSuccess = true
+                    }
+                    
+                    // Show guide if needed
+                    if !dontShowGuideAgain {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                            withAnimation {
+                                showGuide = true
+                            }
+                        }
                     }
                 },
                 onFailure: { errorMessage in
@@ -492,6 +516,9 @@ struct DraggableSticker: View {
 struct EditorTopBar: View {
     let onClose: () -> Void
     let onSave: () -> Void
+    let isPremium: Bool
+    
+    @StateObject private var purchaseManager = RCPurchaseManager.shared
     
     var body: some View {
         HStack {
@@ -517,15 +544,21 @@ struct EditorTopBar: View {
             
             // Save Button
             Button(action: onSave) {
-                Text("完成")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
-                    .background(
-                        Capsule()
-                            .fill(Color.blue)
-                    )
+                HStack(spacing: 6) {
+                    if isPremium && !purchaseManager.hasPremium {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    Text("完成")
+                        .font(.system(size: 16, weight: .semibold))
+                }
+                .foregroundColor(.white)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 10)
+                .background(
+                    Capsule()
+                        .fill(Color.blue)
+                )
             }
         }
         .padding(.horizontal, 20)
