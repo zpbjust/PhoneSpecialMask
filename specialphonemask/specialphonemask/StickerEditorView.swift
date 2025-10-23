@@ -30,6 +30,8 @@ struct StickerEditorView: View {
     @State private var isStickerPanelExpanded = false
     @State private var showPermissionDenied = false
     @State private var showSaveSuccess = false
+    @State private var showGuide = false
+    @AppStorage("dontShowGuideAgain") private var dontShowGuideAgain = false
     
     var body: some View {
         ZStack {
@@ -73,6 +75,39 @@ struct StickerEditorView: View {
                 }
             }
             .ignoresSafeArea()
+            .onTapGesture {
+                // Tap canvas to deselect sticker
+                selectedStickerId = nil
+            }
+            
+            // 侧边浮动工具栏 - 右下角
+            VStack {
+                Spacer()
+                
+                HStack {
+                    Spacer()
+                    
+                    EditorSideToolbar(
+                        theme: theme,
+                        selectedStickerId: $selectedStickerId,
+                        isStickerPanelExpanded: $isStickerPanelExpanded,
+                        onAddSticker: { stickerName in
+                            addSticker(stickerName)
+                        },
+                        onChangeBackground: {
+                            requestPhotoPickerPermission()
+                        },
+                        onDeleteSelected: {
+                            if let selectedId = selectedStickerId {
+                                placedStickers.removeAll { $0.id == selectedId }
+                                selectedStickerId = nil
+                            }
+                        }
+                    )
+                    .padding(.trailing, 20)
+                    .padding(.bottom, 50)
+                }
+            }
             
             // Top Bar
             VStack {
@@ -86,35 +121,63 @@ struct StickerEditorView: View {
                 Spacer()
             }
             
-            // Bottom Toolbar
-            VStack {
-                Spacer()
-                
-                EditorBottomToolbar(
-                    theme: theme,
-                    selectedStickerId: $selectedStickerId,
-                    isStickerPanelExpanded: $isStickerPanelExpanded,
-                    onAddSticker: { stickerName in
-                        addSticker(stickerName)
-                    },
-                    onChangeBackground: {
-                        requestPhotoPickerPermission()
-                    },
-                    onDeleteSelected: {
-                        if let selectedId = selectedStickerId {
-                            placedStickers.removeAll { $0.id == selectedId }
-                            selectedStickerId = nil
+            // Sticker Panel Overlay (底部抽屉式)
+            if isStickerPanelExpanded {
+                VStack {
+                    Spacer()
+                    
+                    StickerSelectionPanel(
+                        theme: theme,
+                        onAddSticker: { stickerName in
+                            addSticker(stickerName)
+                        },
+                        onClose: {
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                isStickerPanelExpanded = false
+                            }
                         }
-                    }
+                    )
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+                .background(
+                    Color.black.opacity(0.3)
+                        .ignoresSafeArea()
+                        .onTapGesture {
+                            withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                                isStickerPanelExpanded = false
+                            }
+                        }
                 )
+                .zIndex(100)
             }
             
             // Save Success Overlay
             if showSaveSuccess {
                 SaveSuccessOverlay(onDismiss: {
                     showSaveSuccess = false
-                    dismiss()
+                    
+                    // 显示引导 (如果用户没有选择不再提示)
+                    if !dontShowGuideAgain {
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                            showGuide = true
+                        }
+                    } else {
+                        dismiss()
+                    }
                 })
+                .zIndex(200)
+            }
+            
+            // Wallpaper Guide
+            if showGuide {
+                WallpaperGuideView(
+                    dontShowAgain: $dontShowGuideAgain,
+                    onDismiss: {
+                        showGuide = false
+                        dismiss()
+                    }
+                )
+                .zIndex(300)
             }
         }
         .photosPicker(isPresented: $showImagePicker, selection: $photoPickerItem, matching: .images)
@@ -370,7 +433,242 @@ struct EditorTopBar: View {
     }
 }
 
-// MARK: - Editor Bottom Toolbar
+// MARK: - Editor Side Toolbar (侧边浮动工具栏)
+struct EditorSideToolbar: View {
+    let theme: StickerTheme
+    @Binding var selectedStickerId: UUID?
+    @Binding var isStickerPanelExpanded: Bool
+    let onAddSticker: (String) -> Void
+    let onChangeBackground: () -> Void
+    let onDeleteSelected: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 12) {
+            // Add Sticker Button
+            ToolbarButton(
+                icon: "face.smiling",
+                color: Color.blue,
+                action: {
+                    withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                        isStickerPanelExpanded.toggle()
+                    }
+                    let generator = UIImpactFeedbackGenerator(style: .medium)
+                    generator.impactOccurred()
+                }
+            )
+            
+            // Change Background Button
+            ToolbarButton(
+                icon: "photo",
+                color: Color.purple,
+                action: {
+                    onChangeBackground()
+                    let generator = UIImpactFeedbackGenerator(style: .medium)
+                    generator.impactOccurred()
+                }
+            )
+            
+            // Delete Selected Button (only show when sticker is selected)
+            if selectedStickerId != nil {
+                ToolbarButton(
+                    icon: "trash",
+                    color: Color.red,
+                    action: {
+                        onDeleteSelected()
+                        let generator = UINotificationFeedbackGenerator()
+                        generator.notificationOccurred(.warning)
+                    }
+                )
+            }
+        }
+    }
+}
+
+// MARK: - Toolbar Button
+struct ToolbarButton: View {
+    let icon: String
+    let color: Color
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                // 外圈光晕
+                Circle()
+                    .fill(color.opacity(0.3))
+                    .frame(width: 64, height: 64)
+                    .blur(radius: 8)
+                
+                // 主圆形
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [color.opacity(0.8), color],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 56, height: 56)
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    )
+                    .shadow(color: color.opacity(0.4), radius: 12, x: 0, y: 4)
+                
+                // 图标
+                Image(systemName: icon)
+                    .font(.system(size: 24, weight: .semibold))
+                    .foregroundColor(.white)
+            }
+        }
+        .buttonStyle(ToolbarButtonStyle())
+    }
+}
+
+// MARK: - Toolbar Button Style
+struct ToolbarButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.88 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Sticker Selection Panel (底部抽屉式)
+struct StickerSelectionPanel: View {
+    let theme: StickerTheme
+    let onAddSticker: (String) -> Void
+    let onClose: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 0) {
+            // Handle Bar
+            VStack(spacing: 16) {
+                Capsule()
+                    .fill(Color.gray.opacity(0.3))
+                    .frame(width: 40, height: 5)
+                    .padding(.top, 12)
+                
+                // Header
+                HStack {
+                    Text("选择贴纸")
+                        .font(.system(size: 20, weight: .bold))
+                        .foregroundColor(.primary)
+                    
+                    Spacer()
+                    
+                    Button(action: onClose) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.gray.opacity(0.15))
+                                .frame(width: 40, height: 40)
+                            
+                            Image(systemName: "xmark")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                }
+                .padding(.horizontal, 24)
+            }
+            
+            // Sticker Grid
+            ScrollView {
+                LazyVGrid(
+                    columns: [
+                        GridItem(.flexible(), spacing: 16),
+                        GridItem(.flexible(), spacing: 16),
+                        GridItem(.flexible(), spacing: 16)
+                    ],
+                    spacing: 16
+                ) {
+                    ForEach(theme.stickers, id: \.self) { sticker in
+                        Button(action: {
+                            onAddSticker(sticker)
+                            let generator = UIImpactFeedbackGenerator(style: .light)
+                            generator.impactOccurred()
+                            
+                            // 添加后自动关闭面板
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                                onClose()
+                            }
+                        }) {
+                            VStack(spacing: 8) {
+                                // Sticker Image - 透明背景
+                                ZStack {
+                                    // 透明背景，只有边框和阴影
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .fill(Color.clear)
+                                    
+                                    MaskImageView(sticker, contentMode: .fit)
+                                        .padding(16)
+                                }
+                                .frame(height: 110)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 20)
+                                        .stroke(
+                                            LinearGradient(
+                                                colors: [
+                                                    theme.color.opacity(0.5),
+                                                    theme.color.opacity(0.3)
+                                                ],
+                                                startPoint: .topLeading,
+                                                endPoint: .bottomTrailing
+                                            ),
+                                            lineWidth: 2
+                                        )
+                                )
+                                .shadow(color: theme.color.opacity(0.2), radius: 12, x: 0, y: 6)
+                            }
+                        }
+                        .buttonStyle(StickerButtonStyle())
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 20)
+                .padding(.bottom, 40)
+            }
+            .frame(maxHeight: 500)
+        }
+        .background(
+            ZStack {
+                // 半透明毛玻璃背景
+                RoundedRectangle(cornerRadius: 30)
+                    .fill(.ultraThinMaterial)
+                    .opacity(0.95)
+                
+                // 顶部微光效果
+                VStack {
+                    LinearGradient(
+                        colors: [
+                            Color.white.opacity(0.3),
+                            Color.clear
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: 80)
+                    
+                    Spacer()
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 30))
+            }
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 30))
+        .shadow(color: .black.opacity(0.15), radius: 30, x: 0, y: -10)
+    }
+}
+
+// MARK: - Sticker Button Style
+struct StickerButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.92 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.6), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Editor Bottom Toolbar (保留但不使用)
 struct EditorBottomToolbar: View {
     let theme: StickerTheme
     @Binding var selectedStickerId: UUID?

@@ -16,6 +16,7 @@ struct HomeView: View {
     // 弹窗状态 - 提升到HomeView层级
     @State private var showWallpaperGuide = false
     @State private var showPermissionDenied = false
+    @AppStorage("dontShowGuideAgain") private var dontShowGuideAgain = false
     
     var body: some View {
         ZStack {
@@ -70,9 +71,12 @@ struct HomeView: View {
             
             // 全局弹窗 - 在ZStack最上层，覆盖所有内容包括导航栏
             if showWallpaperGuide {
-                WallpaperGuideView(onDismiss: {
-                    showWallpaperGuide = false
-                })
+                WallpaperGuideView(
+                    dontShowAgain: $dontShowGuideAgain,
+                    onDismiss: {
+                        showWallpaperGuide = false
+                    }
+                )
                 .zIndex(1000)
             }
             
@@ -199,6 +203,7 @@ struct WallpaperGalleryView: View {
     
     @State private var wallpapers = Wallpaper.sampleWallpapers
     @State private var dragOffset: CGFloat = 0
+    @AppStorage("dontShowGuideAgain") private var dontShowGuideAgain = false
     
     var body: some View {
         ZStack {
@@ -243,6 +248,7 @@ struct WallpaperPageView: View {
     
     @State private var showDetails = false
     @State private var isSaved = false
+    @AppStorage("dontShowGuideAgain") private var dontShowGuideAgain = false
     
     var body: some View {
         ZStack {
@@ -303,10 +309,12 @@ struct WallpaperPageView: View {
                 let generator = UINotificationFeedbackGenerator()
                 generator.notificationOccurred(.success)
                 
-                // Show guide after 1 second
+                // Show guide after 1 second (if not disabled)
                 DispatchQueue.main.asyncAfter(deadline: .now() + 1) {
-                    withAnimation {
-                        showGuide = true
+                    if !dontShowGuideAgain {
+                        withAnimation {
+                            showGuide = true
+                        }
                     }
                 }
                 
@@ -757,6 +765,7 @@ struct MyWorksView: View {
 
 // MARK: - Wallpaper Guide View
 struct WallpaperGuideView: View {
+    @Binding var dontShowAgain: Bool
     let onDismiss: () -> Void
     
     var body: some View {
@@ -827,6 +836,34 @@ struct WallpaperGuideView: View {
                 
                 // Action Buttons
                 VStack(spacing: 12) {
+                    // Don't Show Again Toggle
+                    Button(action: {
+                        withAnimation {
+                            dontShowAgain.toggle()
+                        }
+                        let generator = UIImpactFeedbackGenerator(style: .light)
+                        generator.impactOccurred()
+                    }) {
+                        HStack(spacing: 12) {
+                            Image(systemName: dontShowAgain ? "checkmark.square.fill" : "square")
+                                .font(.system(size: 20))
+                                .foregroundColor(dontShowAgain ? .blue : .white.opacity(0.5))
+                            
+                            Text("不再提示")
+                                .font(.system(size: 15, weight: .medium))
+                                .foregroundColor(.white)
+                            
+                            Spacer()
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.vertical, 12)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.white.opacity(0.05))
+                        )
+                    }
+                    .padding(.horizontal, 20)
+                    
                     // Open Settings
                     Button(action: {
                         if let url = URL(string: UIApplication.openSettingsURLString) {
@@ -848,6 +885,7 @@ struct WallpaperGuideView: View {
                                 .fill(Color.blue)
                         )
                     }
+                    .padding(.horizontal, 20)
                     
                     // Dismiss Button
                     Button(action: onDismiss) {
@@ -858,7 +896,6 @@ struct WallpaperGuideView: View {
                             .padding(.vertical, 16)
                     }
                 }
-                .padding(.horizontal, 20)
                 .padding(.bottom, 40)
             }
         }

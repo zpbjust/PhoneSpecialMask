@@ -16,27 +16,27 @@ struct WelcomeView: View {
     var body: some View {
         if showWelcome {
             ZStack {
-                // Background Gradient
+                // Background Gradient - 亮色系
                 LinearGradient(
                     colors: [
-                        Color(red: 0.2, green: 0.1, blue: 0.3),
-                        Color(red: 0.1, green: 0.1, blue: 0.2),
-                        .black
+                        Color(red: 0.95, green: 0.97, blue: 1.0),
+                        Color(red: 0.90, green: 0.93, blue: 0.98),
+                        Color(red: 0.85, green: 0.88, blue: 0.95)
                     ],
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
                 .ignoresSafeArea()
                 
-                // Animated Background Elements
+                // Animated Background Elements - 柔和色彩
                 GeometryReader { geometry in
                     ForEach(0..<8) { index in
                         Circle()
                             .fill(
                                 LinearGradient(
                                     colors: [
-                                        Color.blue.opacity(0.1),
-                                        Color.purple.opacity(0.1)
+                                        Color.blue.opacity(0.08),
+                                        Color.purple.opacity(0.08)
                                     ],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
@@ -60,7 +60,7 @@ struct WelcomeView: View {
                         Circle()
                             .fill(
                                 LinearGradient(
-                                    colors: [.blue.opacity(0.3), .purple.opacity(0.3)],
+                                    colors: [.blue.opacity(0.2), .purple.opacity(0.2)],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 )
@@ -69,20 +69,20 @@ struct WelcomeView: View {
                             .blur(radius: 20)
                             .scaleEffect(animateIcon ? 1.2 : 1.0)
                         
-                        // Icon Background
+                        // Icon Background - 亮色渐变
                         RoundedRectangle(cornerRadius: 30)
                             .fill(
                                 LinearGradient(
                                     colors: [
-                                        Color(red: 0.4, green: 0.3, blue: 0.8),
-                                        Color(red: 0.2, green: 0.1, blue: 0.5)
+                                        Color(red: 0.4, green: 0.5, blue: 1.0),
+                                        Color(red: 0.5, green: 0.3, blue: 0.9)
                                     ],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing
                                 )
                             )
                             .frame(width: 120, height: 120)
-                            .shadow(color: .black.opacity(0.3), radius: 20, x: 0, y: 10)
+                            .shadow(color: .blue.opacity(0.3), radius: 20, x: 0, y: 10)
                         
                         // Icon Content
                         Image(systemName: "sparkles")
@@ -93,17 +93,17 @@ struct WelcomeView: View {
                     .scaleEffect(animateIcon ? 1.0 : 0.5)
                     .opacity(animateIcon ? 1.0 : 0.0)
                     
-                    // App Name
+                    // App Name - 深色文字
                     VStack(spacing: 12) {
                         Text("Special Phone Mask")
                             .font(.system(size: 32, weight: .bold, design: .rounded))
-                            .foregroundColor(.white)
+                            .foregroundColor(.primary)
                             .opacity(animateText ? 1.0 : 0.0)
                             .offset(y: animateText ? 0 : 20)
                         
                         Text("让锁屏更简洁美观")
                             .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(.white.opacity(0.8))
+                            .foregroundColor(.secondary)
                             .opacity(animateText ? 1.0 : 0.0)
                             .offset(y: animateText ? 0 : 20)
                     }
@@ -189,26 +189,35 @@ struct FeatureRow: View {
     
     var body: some View {
         HStack(spacing: 16) {
-            // Icon
+            // Icon - 亮色背景
             ZStack {
                 Circle()
-                    .fill(Color.white.opacity(0.1))
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                Color.blue.opacity(0.15),
+                                Color.purple.opacity(0.15)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
                     .frame(width: 50, height: 50)
                 
                 Image(systemName: icon)
                     .font(.system(size: 22))
-                    .foregroundColor(.white)
+                    .foregroundColor(.blue)
             }
             
-            // Text
+            // Text - 深色文字
             VStack(alignment: .leading, spacing: 4) {
                 Text(title)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(.white)
+                    .foregroundColor(.primary)
                 
                 Text(description)
                     .font(.system(size: 14))
-                    .foregroundColor(.white.opacity(0.6))
+                    .foregroundColor(.secondary)
             }
             
             Spacer()
