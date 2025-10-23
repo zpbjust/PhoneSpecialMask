@@ -33,6 +33,9 @@ struct StickerEditorView: View {
     @State private var showGuide = false
     @AppStorage("dontShowGuideAgain") private var dontShowGuideAgain = false
     
+    // Canvas ID for screenshot
+    @State private var canvasID = UUID()
+    
     var body: some View {
         ZStack {
             // Background
@@ -79,6 +82,7 @@ struct StickerEditorView: View {
                 // Tap canvas to deselect sticker
                 selectedStickerId = nil
             }
+            .id(canvasID)  // 用于标识画布进行截图
             
             // 侧边浮动工具栏 - 右下角
             VStack {
@@ -228,36 +232,127 @@ struct StickerEditorView: View {
         generator.impactOccurred()
     }
     
-    // MARK: - Save Composite Image
+    // MARK: - Save Composite Image (高分辨率渲染 - 只渲染画布)
     private func saveCompositeImage() {
-        // Render composite image
-        let renderer = UIGraphicsImageRenderer(size: UIScreen.main.bounds.size)
+        // 取消选中状态，确保渲染时没有选中框
+        selectedStickerId = nil
         
-        let compositeImage = renderer.image { context in
-            // Draw background
+        // 延迟一点确保UI更新
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            // 渲染高分辨率画布
+            let canvasImage = renderCanvas()
+            
+            // Request permission and save
+            PhotoLibraryPermissionManager.shared.saveImage(
+                canvasImage,
+                onSuccess: {
+                    // Haptic feedback
+                    let generator = UINotificationFeedbackGenerator()
+                    generator.notificationOccurred(.success)
+                    
+                    // Show success overlay
+                    withAnimation {
+                        showSaveSuccess = true
+                    }
+                },
+                onFailure: { errorMessage in
+                    // Permission denied - Show guide
+                    withAnimation {
+                        showPermissionDenied = true
+                    }
+                }
+            )
+        }
+    }
+    
+    // MARK: - Render Canvas (高分辨率渲染画布)
+    private func renderCanvas() -> UIImage {
+        let screenSize = UIScreen.main.bounds.size
+        let scale: CGFloat = 3.0  // 使用3倍分辨率，确保高清
+        
+        let format = UIGraphicsImageRendererFormat()
+        format.scale = scale
+        
+        let renderer = UIGraphicsImageRenderer(size: screenSize, format: format)
+        
+        return renderer.image { context in
+            // 1. 绘制背景图
             if let backgroundImage = backgroundImage {
-                backgroundImage.draw(in: CGRect(origin: .zero, size: UIScreen.main.bounds.size))
+                // 使用 aspectFill 效果
+                let imageSize = backgroundImage.size
+                let screenAspect = screenSize.width / screenSize.height
+                let imageAspect = imageSize.width / imageSize.height
+                
+                var drawRect: CGRect
+                if imageAspect > screenAspect {
+                    // 图片更宽，按高度缩放
+                    let scaledWidth = screenSize.height * imageAspect
+                    drawRect = CGRect(
+                        x: (screenSize.width - scaledWidth) / 2,
+                        y: 0,
+                        width: scaledWidth,
+                        height: screenSize.height
+                    )
+                } else {
+                    // 图片更高，按宽度缩放
+                    let scaledHeight = screenSize.width / imageAspect
+                    drawRect = CGRect(
+                        x: 0,
+                        y: (screenSize.height - scaledHeight) / 2,
+                        width: screenSize.width,
+                        height: scaledHeight
+                    )
+                }
+                backgroundImage.draw(in: drawRect)
             } else if let defaultImage = loadImage(theme.mainImage) {
-                defaultImage.draw(in: CGRect(origin: .zero, size: UIScreen.main.bounds.size))
+                // 绘制默认主题图
+                let imageSize = defaultImage.size
+                let screenAspect = screenSize.width / screenSize.height
+                let imageAspect = imageSize.width / imageSize.height
+                
+                var drawRect: CGRect
+                if imageAspect > screenAspect {
+                    let scaledWidth = screenSize.height * imageAspect
+                    drawRect = CGRect(
+                        x: (screenSize.width - scaledWidth) / 2,
+                        y: 0,
+                        width: scaledWidth,
+                        height: screenSize.height
+                    )
+                } else {
+                    let scaledHeight = screenSize.width / imageAspect
+                    drawRect = CGRect(
+                        x: 0,
+                        y: (screenSize.height - scaledHeight) / 2,
+                        width: screenSize.width,
+                        height: scaledHeight
+                    )
+                }
+                defaultImage.draw(in: drawRect)
             }
             
-            // Draw stickers
+            // 2. 绘制贴纸（按照屏幕上的实际位置）
             for sticker in placedStickers {
                 if let stickerImage = loadImage(sticker.imageName) {
                     context.cgContext.saveGState()
                     
-                    // Transform context
+                    // 移动到贴纸位置
                     context.cgContext.translateBy(x: sticker.position.x, y: sticker.position.y)
+                    
+                    // 应用旋转
                     context.cgContext.rotate(by: CGFloat(sticker.rotation.radians))
+                    
+                    // 应用缩放
                     context.cgContext.scaleBy(x: sticker.scale, y: sticker.scale)
                     
-                    // Draw sticker centered
-                    let stickerSize: CGFloat = 150
+                    // 绘制贴纸（居中）
+                    // 贴纸的基础大小与界面显示一致：150pt
+                    let baseStickerSize: CGFloat = 150
                     let rect = CGRect(
-                        x: -stickerSize / 2,
-                        y: -stickerSize / 2,
-                        width: stickerSize,
-                        height: stickerSize
+                        x: -baseStickerSize / 2,
+                        y: -baseStickerSize / 2,
+                        width: baseStickerSize,
+                        height: baseStickerSize
                     )
                     stickerImage.draw(in: rect)
                     
@@ -265,27 +360,21 @@ struct StickerEditorView: View {
                 }
             }
         }
+    }
+    
+    // MARK: - Capture Screen (截取画布区域)
+    private func captureScreen() -> UIImage {
+        // 获取整个屏幕
+        let window = UIApplication.shared.windows.first { $0.isKeyWindow }
+        let bounds = UIScreen.main.bounds
         
-        // Request permission and save
-        PhotoLibraryPermissionManager.shared.saveImage(
-            compositeImage,
-            onSuccess: {
-                // Haptic feedback
-                let generator = UINotificationFeedbackGenerator()
-                generator.notificationOccurred(.success)
-                
-                // Show success overlay
-                withAnimation {
-                    showSaveSuccess = true
-                }
-            },
-            onFailure: { errorMessage in
-                // Permission denied - Show guide
-                withAnimation {
-                    showPermissionDenied = true
-                }
-            }
-        )
+        // 创建截图
+        let renderer = UIGraphicsImageRenderer(size: bounds.size)
+        let screenshot = renderer.image { context in
+            window?.drawHierarchy(in: bounds, afterScreenUpdates: true)
+        }
+        
+        return screenshot
     }
     
     // MARK: - Load Image Helper
