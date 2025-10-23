@@ -251,7 +251,6 @@ struct WallpaperPageView: View {
     @Binding var showGuide: Bool
     @Binding var showPermissionDenied: Bool
     
-    @State private var showDetails = false
     @State private var isSaved = false
     @AppStorage("dontShowGuideAgain") private var dontShowGuideAgain = false
     
@@ -283,13 +282,9 @@ struct WallpaperPageView: View {
                     currentIndex: currentIndex,
                     total: total,
                     isPremium: wallpaper.isPremium,
-                    showDetails: $showDetails,
                     isSaved: $isSaved,
                     onSave: {
                         saveWallpaper()
-                    },
-                    onEdit: {
-                        // TODO: Navigate to edit
                     }
                 )
                 .padding(.bottom, 40)
@@ -370,10 +365,8 @@ struct BottomInfoBar: View {
     let currentIndex: Int
     let total: Int
     let isPremium: Bool
-    @Binding var showDetails: Bool
     @Binding var isSaved: Bool
     let onSave: () -> Void
-    let onEdit: () -> Void
     
     @StateObject private var purchaseManager = RCPurchaseManager.shared
     @State private var showPaywall = false
@@ -385,85 +378,46 @@ struct BottomInfoBar: View {
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(.white.opacity(0.7))
             
-            // Description (expandable)
-            if showDetails {
-                VStack(spacing: 8) {
-                    Text(title)
-                        .font(.system(size: 18, weight: .bold))
-                        .foregroundColor(.white)
-                    
-                    Text(description)
-                        .font(.system(size: 14))
-                        .foregroundColor(.white.opacity(0.8))
-                        .multilineTextAlignment(.center)
+            // Save Button
+            Button(action: {
+                // Check premium status before saving
+                if isPremium && !purchaseManager.hasPremium {
+                    showPaywall = true
+                } else {
+                    onSave()
                 }
-                .padding(.horizontal, 40)
-                .transition(.opacity.combined(with: .move(edge: .bottom)))
-            }
-            
-            // Action Buttons
-            HStack(spacing: 16) {
-                // Save Button
-                Button(action: {
-                    // Check premium status before saving
-                    if isPremium && !purchaseManager.hasPremium {
-                        showPaywall = true
+            }) {
+                HStack(spacing: 8) {
+                    if isSaved {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 18))
+                        Text("已保存")
+                            .font(.system(size: 16, weight: .semibold))
+                    } else if isPremium && !purchaseManager.hasPremium {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 18))
+                        Text("保存到相册")
+                            .font(.system(size: 16, weight: .semibold))
                     } else {
-                        onSave()
+                        Image(systemName: "square.and.arrow.down.fill")
+                            .font(.system(size: 18))
+                        Text("保存到相册")
+                            .font(.system(size: 16, weight: .semibold))
                     }
-                }) {
-                    HStack(spacing: 8) {
-                        if isSaved {
-                            Image(systemName: "checkmark.circle.fill")
-                                .font(.system(size: 18))
-                            Text("已保存")
-                                .font(.system(size: 16, weight: .semibold))
-                        } else if isPremium && !purchaseManager.hasPremium {
-                            Image(systemName: "lock.fill")
-                                .font(.system(size: 18))
-                            Text("保存到相册")
-                                .font(.system(size: 16, weight: .semibold))
-                        } else {
-                            Image(systemName: "square.and.arrow.down.fill")
-                                .font(.system(size: 18))
-                            Text("保存到相册")
-                                .font(.system(size: 16, weight: .semibold))
-                        }
-                    }
-                    .foregroundColor(isSaved ? .green : .white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        isSaved ? Color.green.opacity(0.2) : Color.white.opacity(0.15),
-                        in: RoundedRectangle(cornerRadius: 16)
-                    )
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(isSaved ? Color.green : Color.white.opacity(0.2), lineWidth: 1)
-                    )
                 }
-                .disabled(isSaved)
-                
-                // Info Button
-                Button(action: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        showDetails.toggle()
-                    }
-                }) {
-                    Image(systemName: showDetails ? "info.circle.fill" : "info.circle")
-                        .font(.system(size: 18))
-                        .foregroundColor(.white)
-                        .frame(width: 50, height: 50)
-                        .background(
-                            Color.white.opacity(0.15),
-                            in: RoundedRectangle(cornerRadius: 16)
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16)
-                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                        )
-                }
+                .foregroundColor(isSaved ? .green : .white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(
+                    isSaved ? Color.green.opacity(0.2) : Color.white.opacity(0.15),
+                    in: RoundedRectangle(cornerRadius: 16)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(isSaved ? Color.green : Color.white.opacity(0.2), lineWidth: 1)
+                )
             }
+            .disabled(isSaved)
             .padding(.horizontal, 30)
         }
         .padding(.horizontal, 20)
@@ -674,7 +628,6 @@ struct StickerPageView: View {
     let currentIndex: Int
     let total: Int
     
-    @State private var showDetails = false
     @State private var showEditor = false
     
     var body: some View {
@@ -721,7 +674,6 @@ struct StickerPageView: View {
                     currentIndex: currentIndex,
                     total: total,
                     stickerCount: theme.stickerCount,
-                    showDetails: $showDetails,
                     onStartCreate: {
                         showEditor = true
                     }
@@ -741,7 +693,6 @@ struct StickerBottomBar: View {
     let currentIndex: Int
     let total: Int
     let stickerCount: Int
-    @Binding var showDetails: Bool
     let onStartCreate: () -> Void
     
     var body: some View {
@@ -751,48 +702,30 @@ struct StickerBottomBar: View {
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(.white.opacity(0.7))
             
-            // Action Buttons
-            HStack(spacing: 16) {
-                // Start Create Button
-                Button(action: onStartCreate) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "wand.and.stars")
-                            .font(.system(size: 18))
-                        Text("开始创作")
-                            .font(.system(size: 16, weight: .semibold))
-                    }
-                    .foregroundColor(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        LinearGradient(
-                            colors: [Color.blue, Color.purple],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        ),
-                        in: RoundedRectangle(cornerRadius: 16)
-                    )
-                    .shadow(color: .blue.opacity(0.3), radius: 10, x: 0, y: 5)
-                }
-                
-                // Info Button
-                Button(action: {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
-                        showDetails.toggle()
-                    }
-                }) {
-                    Image(systemName: showDetails ? "info.circle.fill" : "info.circle")
+            // Start Create Button
+            Button(action: onStartCreate) {
+                HStack(spacing: 8) {
+                    Image(systemName: "wand.and.stars")
                         .font(.system(size: 18))
-                        .foregroundColor(.white)
-                        .frame(width: 50, height: 50)
-                        .background(
-                            Color.white.opacity(0.15),
-                            in: RoundedRectangle(cornerRadius: 16)
-                        )
+                    Text("开始创作")
+                        .font(.system(size: 16, weight: .semibold))
                 }
+                .foregroundColor(.white)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+                .background(
+                    LinearGradient(
+                        colors: [Color.blue, Color.purple],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    ),
+                    in: RoundedRectangle(cornerRadius: 16)
+                )
+                .shadow(color: .blue.opacity(0.3), radius: 10, x: 0, y: 5)
             }
             .padding(.horizontal, 30)
         }
+        .padding(.horizontal, 20)
     }
 }
 
