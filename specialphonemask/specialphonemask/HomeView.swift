@@ -468,26 +468,6 @@ struct WallpaperGridView: View {
                                 MaskImageView(wallpaper.imageName, contentMode: .fill)
                                     .frame(height: 240)
                                     .clipShape(RoundedRectangle(cornerRadius: 16))
-                                
-                                // Gradient Overlay
-                                LinearGradient(
-                                    colors: [.clear, .black.opacity(0.6)],
-                                    startPoint: .center,
-                                    endPoint: .bottom
-                                )
-                                .clipShape(RoundedRectangle(cornerRadius: 16))
-                                
-                                // Title
-                                VStack(alignment: .leading, spacing: 4) {
-                                    Text(wallpaper.title)
-                                        .font(.system(size: 14, weight: .semibold))
-                                        .foregroundColor(.white)
-                                    
-                                    Text("\(index + 1)/\(wallpapers.count)")
-                                        .font(.system(size: 12))
-                                        .foregroundColor(.white.opacity(0.7))
-                                }
-                                .padding(12)
                             }
                             .overlay(
                                 RoundedRectangle(cornerRadius: 16)
@@ -904,7 +884,18 @@ struct PremiumBanner: View {
         }
         .buttonStyle(PlainButtonStyle())
         .fullScreenCover(isPresented: $showPaywall) {
-            RCPaywallView()
+            RCPaywallView {
+                // 购买成功后刷新状态
+                Task {
+                    await purchaseManager.refreshPurchaseState()
+                }
+            }
+        }
+        .onAppear {
+            // 页面显示时刷新购买状态
+            Task {
+                await purchaseManager.refreshPurchaseState()
+            }
         }
     }
     
