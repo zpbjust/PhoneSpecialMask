@@ -18,6 +18,8 @@ struct RCPaywallView: View {
     @State private var showError: Bool = false
     @State private var errorMessage: String = ""
     @State private var showRestoreSuccess: Bool = false
+    @State private var isPurchasing: Bool = false
+    @State private var isRestoring: Bool = false
     
     var onPurchaseSuccess: (() -> Void)?
     
@@ -93,7 +95,7 @@ struct RCPaywallView: View {
                     // Purchase button
                     Button(action: { purchaseSelectedProduct() }) {
                         HStack {
-                            if purchaseManager.isPurchasing {
+                            if isPurchasing {
                                 ProgressView()
                                     .tint(.white)
                             } else {
@@ -108,14 +110,14 @@ struct RCPaywallView: View {
                         .cornerRadius(28)
                         .shadow(color: .black.opacity(0.2), radius: 10, x: 0, y: 5)
                     }
-                    .disabled(purchaseManager.isPurchasing || purchaseManager.availableProducts.isEmpty)
+                    .disabled(isPurchasing || purchaseManager.availableProducts.isEmpty)
                     .padding(.horizontal, 20)
                     .padding(.top, 10)
                     
                     // Restore button
                     Button(action: { restorePurchases() }) {
                         HStack {
-                            if purchaseManager.isRestoring {
+                            if isRestoring {
                                 ProgressView()
                                     .tint(.white)
                             } else {
@@ -125,16 +127,16 @@ struct RCPaywallView: View {
                         }
                     }
                     .foregroundColor(.white.opacity(0.9))
-                    .disabled(purchaseManager.isRestoring)
+                    .disabled(isRestoring)
                     
                     // Terms and privacy
                     HStack(spacing: 20) {
                         Button("服务条款") {
-                            // Open terms URL
+                            openURL(RCConfiguration.termsOfServiceURL)
                         }
                         
                         Button("隐私政策") {
-                            // Open privacy URL
+                            openURL(RCConfiguration.privacyPolicyURL)
                         }
                     }
                     .font(.system(size: 14))
@@ -169,6 +171,7 @@ struct RCPaywallView: View {
     // MARK: - Actions
     
     private func purchaseSelectedProduct() {
+        isPurchasing = true
         Task {
             do {
                 try await purchaseManager.purchaseProduct(withID: selectedProductID)
@@ -179,10 +182,12 @@ struct RCPaywallView: View {
                 errorMessage = error.localizedDescription
                 showError = true
             }
+            isPurchasing = false
         }
     }
     
     private func restorePurchases() {
+        isRestoring = true
         Task {
             do {
                 try await purchaseManager.restorePurchases()
@@ -191,7 +196,13 @@ struct RCPaywallView: View {
                 errorMessage = error.localizedDescription
                 showError = true
             }
+            isRestoring = false
         }
+    }
+    
+    private func openURL(_ urlString: String) {
+        guard let url = URL(string: urlString) else { return }
+        UIApplication.shared.open(url)
     }
 }
 

@@ -45,6 +45,15 @@ struct RCConfiguration {
     /// 在 RevenueCat Dashboard 中配置
     static let entitlementID = "premium_access"
     
+    // MARK: - Legal Links
+    
+    /// 隐私政策链接
+    /// 替换为你的隐私政策 URL
+    static let privacyPolicyURL = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+    
+    /// 服务条款链接（使用 Apple 标准 EULA）
+    static let termsOfServiceURL = "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+    
     // MARK: - Debug Configuration
     
     /// 是否启用调试日志

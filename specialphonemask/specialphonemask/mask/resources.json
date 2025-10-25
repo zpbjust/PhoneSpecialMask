@@ -127,6 +127,54 @@
       "description": "彩虹色彩，活力四射",
       "category": "abstract",
       "isPremium": true
+    },
+    {
+      "id": "17",
+      "imageName": "pager_17",
+      "title": "简约线条",
+      "description": "极简线条设计，现代感十足",
+      "category": "abstract",
+      "isPremium": true
+    },
+    {
+      "id": "18",
+      "imageName": "pager_18",
+      "title": "霓虹渐变",
+      "description": "霓虹色彩渐变，时尚炫酷",
+      "category": "gradient",
+      "isPremium": true
+    },
+    {
+      "id": "19",
+      "imageName": "pager_19",
+      "title": "蓝紫幻境",
+      "description": "蓝紫色渐变，梦幻迷人",
+      "category": "gradient",
+      "isPremium": true
+    },
+    {
+      "id": "20",
+      "imageName": "pager_20",
+      "title": "金色辉煌",
+      "description": "金色光芒，尊贵典雅",
+      "category": "gradient",
+      "isPremium": true
+    },
+    {
+      "id": "21",
+      "imageName": "pager_21",
+      "title": "可爱猫咪",
+      "description": "呆萌猫咪背景，温馨有趣",
+      "category": "nature",
+      "isPremium": true
+    },
+    {
+      "id": "22",
+      "imageName": "pager_22",
+      "title": "山峦叠嶂",
+      "description": "层叠山峦剪影，意境深远",
+      "category": "nature",
+      "isPremium": true
     }
   ],
   "stickerThemes": [

@@ -11,7 +11,7 @@ struct HomeView: View {
     @State private var selectedTab: HomeTab = .wallpapers
     @State private var currentWallpaperIndex = 0
     @State private var currentStickerIndex = 0
-    @State private var showGridView = false
+    @State private var showGridView = true  // 默认网格模式，方便预览和切换
     
     // 弹窗状态 - 提升到HomeView层级
     @State private var showWallpaperGuide = false
